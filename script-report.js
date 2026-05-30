@@ -599,6 +599,7 @@ function copyReportToClipboard() {
     });
 }
 
+// Hadiya note preview with overlay
 function copyHadiyaNoteToClipboard() {
     if (!currentHadiyaDetails || !currentHadiyaDetails.current) {
         showSnackbar("No Hadiya details available to copy.", true);
