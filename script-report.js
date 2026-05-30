@@ -643,7 +643,7 @@ function copyHadiyaNoteToClipboard() {
     var tDua = 'யா அல்லாஹ், எங்களின் ஒருங்கிணைந்த முயற்சிகளை ஏற்றுக்கொண்டு, ஈடுபட்ட அனைவருக்கும் மகத்தான பரக்கத்தை வழங்கி, அனைத்து ஓதுனர்களுக்கும் இம்மையிலும் மறுமையிலும் உயர்ந்த அந்தஸ்தை வழங்குவாயாக்!';
 
     captureDiv.innerHTML =
-        '<div style="width:480px; background:#0d1117; padding:28px 32px; box-sizing:border-box; font-family:Poppins, Arial, sans-serif;">' +
+        '<div style="max-width:480px;width:100%; background:#0d1117; padding:28px 32px; box-sizing:border-box; font-family:Poppins, Arial, sans-serif;">' +
         '<div style="height:3px; background:linear-gradient(90deg, #2dd4bf, #5eead4); margin:-28px -32px 20px -32px;"></div>' +
         '<div style="font-size:1.1rem; font-weight:700; color:#5eead4; margin-bottom:1px;">' +
         'Hadiya Completed</div>' +
@@ -689,7 +689,8 @@ function copyHadiyaNoteToClipboard() {
 
     captureDiv.style.display = 'block';
     captureDiv.style.position = 'static';
-    captureDiv.style.width = '480px';
+    captureDiv.style.width = '';
+    captureDiv.style.maxWidth = 'min(480px, calc(100vw - 20px))';
     captureDiv.style.maxHeight = '80vh';
     captureDiv.style.overflowY = 'auto';
     captureDiv.style.borderRadius = '12px';
@@ -702,6 +703,7 @@ function copyHadiyaNoteToClipboard() {
         captureDiv.innerHTML = '';
         captureDiv.style.position = '';
         captureDiv.style.width = '';
+        captureDiv.style.maxWidth = '';
         captureDiv.style.maxHeight = '';
         captureDiv.style.overflowY = '';
         captureDiv.style.borderRadius = '';
