@@ -354,7 +354,7 @@ function renderReportRows(items) {
             if (rawStatus === "Completed" || (rawStatus === "Exception Raised" && row.dateLogged)) {
                 const encName = row.name.replace(/'/g, "\\'");
                 const encDate = (row.dateLogged || '').replace(/'/g, "\\'");
-                timeEditIcon = `<span class="report-time-edit" style="cursor:pointer;" onclick="openReportEditModal('${row.userId}','${encName}','Completed','${encDate}')" title="Update completion time"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e6edf3" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>`;
+                timeEditIcon = `<span class="report-time-edit" style="cursor:pointer;margin-left:8px;" onclick="openReportEditModal('${row.userId}','${encName}','Completed','${encDate}')" title="Update completion time"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e6edf3" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>`;
             }
         }
 
