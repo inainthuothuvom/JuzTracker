@@ -857,7 +857,5 @@ var result = {
                 return this;
             }
         };
-        window.google = window.google || {};
-        window.google.script = window.google.script || {};
-        window.google.script.run = api;
+        window.appApi = api;
     })();

@@ -32,7 +32,7 @@ let userListData = [];
 
 window.onload = function() {
     (function(){var d=new Date();var p=function(n){return String(n).padStart(2,'0')};document.getElementById('dateInput').value=d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());})();
-    google.script.run.withSuccessHandler(function(users) {
+    window.appApi.withSuccessHandler(function(users) {
         userListData = users;
         const dropdown = document.getElementById('userDropdown');
         dropdown.innerHTML = users.map(u =>
@@ -396,7 +396,7 @@ function submitQuery() {
     resDiv.style.display = "none";
     loader.style.display = "block";
 
-    google.script.run.withSuccessHandler(function(res) {
+    window.appApi.withSuccessHandler(function(res) {
         btn.disabled = false;
         loader.style.display = "none";
         
@@ -479,7 +479,7 @@ function submitDirectStatus(statusVal) {
     excBtn.disabled = true;
 
     const customTime = getCustomTime('main');
-    google.script.run.withSuccessHandler(function(response) {
+    window.appApi.withSuccessHandler(function(response) {
         compBtn.disabled = false;
         recBtn.disabled = false;
         excBtn.disabled = false;
@@ -525,7 +525,7 @@ function submitSupportStatusDirect(newSupStatus) {
     recBtn.disabled = true;
 
     const customTime = getCustomTime('support');
-    google.script.run.withSuccessHandler(function(response) {
+    window.appApi.withSuccessHandler(function(response) {
         compBtn.disabled = false;
         recBtn.disabled = false;
         if (response.success) {
@@ -552,7 +552,7 @@ function submitSupportFromAssignment(newSupStatus) {
     var btns = document.querySelectorAll('#supportAssignmentModal .modal-content button');
     btns.forEach(function(b) { b.disabled = true; });
     const customTime = getCustomTime('support');
-    google.script.run.withSuccessHandler(function(response) {
+    window.appApi.withSuccessHandler(function(response) {
         btns.forEach(function(b) { b.disabled = false; });
         if (response.success) {
             showSnackbar("Support status updated to " + newSupStatus, false);
@@ -615,7 +615,7 @@ function openReassignModal() {
     let originalName = document.getElementById('userSearch').value;
     metaText.innerHTML = `An exception has been registered.<br><br>விதிவிலக்கு பதிவு செய்யப்பட்டுள்ளது<br><br><b>Juz ${currentActiveJuzNumber}</b><br><b>Original Reader:</b> ${originalName}`;
 
-    google.script.run.withSuccessHandler(function(candidates) {
+    window.appApi.withSuccessHandler(function(candidates) {
         select.innerHTML = '<option value="">Select Support Partner...</option>';
         if (candidates.length === 0) {
             select.innerHTML = '<option value="">No readers available</option>';
@@ -650,7 +650,7 @@ function submitReassignment() {
     reassignBtn.disabled = true;
     reassignBtn.innerText = "Assigning...";
 
-    google.script.run.withSuccessHandler(function(response) {
+    window.appApi.withSuccessHandler(function(response) {
         reassignBtn.disabled = false;
         reassignBtn.innerText = "Assign Reciting Partner";
         

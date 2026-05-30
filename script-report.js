@@ -8,7 +8,7 @@ function fetchAndRenderReport(dateVal, onComplete) {
     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
     document.querySelector('.filter-btn[data-filter="ALL"]')?.classList.add('active');
 
-    google.script.run.withSuccessHandler(function(res) {
+    window.appApi.withSuccessHandler(function(res) {
         if (res.error) {
             tableBody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#f87171; padding:20px;">${res.error}</td></tr>`;
             if (onComplete) onComplete();
@@ -90,7 +90,7 @@ function submitReportEditStatus(newStatus) {
     const btns = document.querySelectorAll('#reportEditModal .status-btn');
     btns.forEach(b => b.disabled = true);
 
-    google.script.run.withSuccessHandler(function(response) {
+    window.appApi.withSuccessHandler(function(response) {
         btns.forEach(b => b.disabled = false);
         if (response.success) {
             const entry = rawReportData.find(r => r.userId === reportEditUserId);
@@ -286,7 +286,7 @@ function executeBulkUpdate() {
             }
             return;
         }
-        google.script.run.withSuccessHandler(function(res) {
+        window.appApi.withSuccessHandler(function(res) {
             if (res.success) completed++;
             else failed++;
             processNext(i + 1);

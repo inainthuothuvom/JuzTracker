@@ -1,5 +1,5 @@
 function fetchHadiyaDetails(dateVal) {
-    google.script.run
+    window.appApi
         .withSuccessHandler(function(res) {
             displayHadiya(res);
         })
@@ -97,7 +97,7 @@ function saveHadiyaScheduleTimes() {
     document.getElementById('hadiyaConfigSaveBtn').disabled = true;
     document.getElementById('hadiyaConfigSaveBtn').innerText = "Saving...";
     var dateVal = document.getElementById('dateInput').value;
-    google.script.run.withSuccessHandler(function(r) {
+    window.appApi.withSuccessHandler(function(r) {
         document.getElementById('hadiyaConfigSaveBtn').disabled = false;
         document.getElementById('hadiyaConfigSaveBtn').innerHTML = 'Save Schedule Times<br>நேரத்தை சேமிக்க';
         if (r.success) {
@@ -299,7 +299,7 @@ function displayHadiya(res) {
 function updateHadiyaStatusUI(newStatus) {
     const dateVal = document.getElementById('dateInput').value;
     if (!dateVal) return;
-    google.script.run.withSuccessHandler(function(r) {
+    window.appApi.withSuccessHandler(function(r) {
         if (r.success) {
             showSnackbar("Hadiya status updated: " + newStatus, false);
             fetchHadiyaDetails(dateVal);
@@ -641,7 +641,7 @@ function saveDedication() {
     }
     
     document.getElementById('saveDedicationBtn').disabled = true;
-    google.script.run.withSuccessHandler(function(r) {
+    window.appApi.withSuccessHandler(function(r) {
         document.getElementById('saveDedicationBtn').disabled = false;
         if (r.success) {
             showSnackbar("Dedication updated! / அர்ப்பணிப்பு சேமிக்கப்பட்டது!", false);
