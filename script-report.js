@@ -643,8 +643,8 @@ function copyHadiyaNoteToClipboard() {
     var tDua = 'யா அல்லாஹ், எங்களின் ஒருங்கிணைந்த முயற்சிகளை ஏற்றுக்கொண்டு, ஈடுபட்ட அனைவருக்கும் மகத்தான பரக்கத்தை வழங்கி, அனைத்து ஓதுனர்களுக்கும் இம்மையிலும் மறுமையிலும் உயர்ந்த அந்தஸ்தை வழங்குவாயாக்!';
 
     captureDiv.innerHTML =
-        '<div style="max-width:480px;width:100%; background:#0d1117; padding:28px 32px; box-sizing:border-box; font-family:Poppins, Arial, sans-serif;">' +
-        '<div style="height:3px; background:linear-gradient(90deg, #2dd4bf, #5eead4); margin:-28px -32px 20px -32px;"></div>' +
+        '<div style="width:480px; background:#0d1117; padding:28px 24px; box-sizing:border-box; font-family:Poppins, Arial, sans-serif;">' +
+        '<div style="height:3px; background:linear-gradient(90deg, #2dd4bf, #5eead4); margin:-28px -24px 20px -24px;"></div>' +
         '<div style="font-size:1.1rem; font-weight:700; color:#5eead4; margin-bottom:1px;">' +
         'Hadiya Completed</div>' +
         '<div style="font-size:0.85rem; color:#5eead4; margin-bottom:10px;">' +
@@ -679,22 +679,51 @@ function copyHadiyaNoteToClipboard() {
         '<div style="text-align:center; font-size:0.65rem; color:#30363d; border-top:1px solid #21262d; padding-top:12px;">— Inainthu Othuvom —</div>' +
         '</div>';
 
-    // Create preview overlay with buttons
+    // Build everything off-DOM first to avoid flash
     var overlay = document.createElement('div');
     overlay.id = 'hadiyaPreviewOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;flex-direction:column;';
-    // Move captureDiv into overlay
-    captureDiv.parentNode.insertBefore(overlay, captureDiv);
-    overlay.appendChild(captureDiv);
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9998;background:#0d1117;display:flex;align-items:center;justify-content:center;overflow:hidden;opacity:0;transition:opacity 0s;';
 
     captureDiv.style.display = 'block';
     captureDiv.style.position = 'static';
-    captureDiv.style.width = '';
-    captureDiv.style.maxWidth = 'min(480px, calc(100vw - 20px))';
+    captureDiv.style.width = '480px';
     captureDiv.style.maxHeight = '80vh';
+    captureDiv.style.overflowX = 'hidden';
     captureDiv.style.overflowY = 'auto';
-    captureDiv.style.borderRadius = '12px';
+    captureDiv.style.borderRadius = '0 0 12px 12px';
     captureDiv.style.boxShadow = 'none';
+
+    var previewScale = Math.min(1, (window.innerWidth - 40) / 480);
+
+    var topBar = document.createElement('div');
+    topBar.style.cssText = 'width:480px;display:flex;justify-content:space-between;align-items:center;padding:10px 24px;box-sizing:border-box;';
+    topBar.innerHTML =
+        '<button id="hadiyaCopyBtn" style="background:#238636;color:#fff;border:none;border-radius:6px;padding:8px 18px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 1px 3px rgba(0,0,0,0.3);">Copy 📋</button>' +
+        '<button id="hadiyaCloseBtn" style="background:none;border:none;font-size:1.8rem;color:#8b949e;cursor:pointer;line-height:1;padding:0;margin-right:-4px;font-family:inherit;">&times;</button>';
+
+    var previewWrap = document.createElement('div');
+    previewWrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;';
+    if (previewScale < 1) {
+        previewWrap.style.transform = 'scale(' + previewScale + ')';
+        previewWrap.style.transformOrigin = 'center center';
+    }
+    previewWrap.appendChild(topBar);
+    previewWrap.appendChild(captureDiv);
+    overlay.appendChild(previewWrap);
+
+    // Append to DOM only when fully built
+    document.body.appendChild(overlay);
+
+    // Fade in after paint to avoid blink
+    requestAnimationFrame(function() {
+        requestAnimationFrame(function() {
+            overlay.style.opacity = '1';
+        });
+    });
+
+    document.getElementById('hadiyaCloseBtn').onclick = function() {
+        closePreview();
+    };
 
     var closePreview = function() {
         overlay.parentNode.insertBefore(captureDiv, overlay);
@@ -703,24 +732,12 @@ function copyHadiyaNoteToClipboard() {
         captureDiv.innerHTML = '';
         captureDiv.style.position = '';
         captureDiv.style.width = '';
-        captureDiv.style.maxWidth = '';
         captureDiv.style.maxHeight = '';
+        captureDiv.style.overflowX = '';
         captureDiv.style.overflowY = '';
-        captureDiv.style.borderRadius = '';
         captureDiv.style.boxShadow = '';
+        captureDiv.style.borderRadius = '';
     };
-
-    var closeX = document.createElement('span');
-    closeX.innerHTML = '&times;';
-    closeX.style.cssText = 'position:fixed;top:12px;right:18px;font-size:1.8rem;color:#8b949e;cursor:pointer;z-index:9999;line-height:1;';
-    closeX.onclick = closePreview;
-    overlay.appendChild(closeX);
-
-    var btnWrap = document.createElement('div');
-    btnWrap.style.cssText = 'margin-top:10px;display:flex;gap:8px;';
-    btnWrap.innerHTML =
-        '<button id="hadiyaCopyBtn" style="background:#238636;color:#fff;border:none;border-radius:6px;padding:6px 16px;font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;">Copy 📋</button>';
-    overlay.appendChild(btnWrap);
 
     overlay.onclick = function(e) {
         if (e.target === overlay) closePreview();
@@ -730,7 +747,16 @@ function copyHadiyaNoteToClipboard() {
         var btn = this;
         btn.disabled = true;
         btn.innerText = "Rendering...";
-        // Expand to full height for capture, then restore
+        // Hide preview scale before capture (no visual expansion)
+        var origTransform = '';
+        var origTransformOrigin = '';
+        if (previewScale < 1) {
+            origTransform = previewWrap.style.transform;
+            origTransformOrigin = previewWrap.style.transformOrigin;
+            previewWrap.style.opacity = '0';
+            previewWrap.style.transform = 'none';
+            previewWrap.style.transformOrigin = '';
+        }
         var origMaxH = captureDiv.style.maxHeight;
         var origOverflow = captureDiv.style.overflowY;
         captureDiv.style.maxHeight = 'none';
@@ -743,6 +769,11 @@ function copyHadiyaNoteToClipboard() {
         }).then(function(canvas) {
             captureDiv.style.maxHeight = origMaxH;
             captureDiv.style.overflowY = origOverflow;
+            if (previewScale < 1) {
+                previewWrap.style.transform = origTransform;
+                previewWrap.style.transformOrigin = origTransformOrigin;
+                previewWrap.style.opacity = '';
+            }
             canvas.toBlob(function(blob) {
                 navigator.clipboard.write([new ClipboardItem({'image/png': blob})]).then(function() {
                     btn.innerText = "Copied! ✓";
@@ -779,6 +810,11 @@ function copyHadiyaNoteToClipboard() {
         }).catch(function() {
             captureDiv.style.maxHeight = origMaxH;
             captureDiv.style.overflowY = origOverflow;
+            if (previewScale < 1) {
+                previewWrap.style.transform = origTransform;
+                previewWrap.style.transformOrigin = origTransformOrigin;
+                previewWrap.style.opacity = '';
+            }
             btn.disabled = false;
             btn.innerText = "Copy 📋";
             showSnackbar("Rendering failed.", true);

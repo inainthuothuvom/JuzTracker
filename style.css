@@ -4,7 +4,6 @@
 
         html, body {
             max-width: 100%;
-            overflow-x: hidden;
         }
 
         body {
@@ -519,6 +518,19 @@
 
         @media (max-width: 600px) {
             body { padding: 0; }
+        }
+
+        #mainHeader {
+            width: 92%;
+            max-width: 480px;
+        }
+
+        @media (max-width: 600px) {
+            #mainHeader {
+                width: 98%;
+                max-width: none;
+                padding: 10px 14px 6px;
+            }
             .container {
                 width: 98%;
                 max-width: none;
@@ -543,6 +555,8 @@
                 width: 100% !important;
                 max-width: 100% !important;
                 overflow-x: hidden !important;
+                height: 100dvh !important;
+                max-height: 100dvh !important;
             }
             #reportModal .group-box { padding: 8px 6px !important; }
             #reportModal button,
