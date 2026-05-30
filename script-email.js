@@ -123,7 +123,7 @@
      * @param {Array} recipients - Array of email addresses
      */
     function sendToSelectMembers(params, recipients) {
-        if (!recipients || recipientsi.length === 0) {
+        if (!recipients || recipients.length === 0) {
             recipients = NOTIFICATION_RECIPIENTS.selectMembers;
         }
 
