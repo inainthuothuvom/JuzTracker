@@ -30,11 +30,11 @@
 
     // Admin and select members who receive notifications
     var NOTIFICATION_RECIPIENTS = {
-        admin: 'kmusthak916@gmail.com',
+        admin: 'mumthajk5@gmail.com',
         selectMembers: [
             // Add email addresses of select members who should receive notifications
             // 'member1@example.com',
-            // 'member2@example.com'
+            'kmusthak916@gmail.com'
         ]
     };
 
@@ -86,7 +86,7 @@
             proposed_status_tamil: tamilStatus(params.status),
             updated_by: params.updatedBy || 'System',
             date_time_updated: formattedTime(params.timestamp),
-            Dashboard_Link: 'https://tinyurl.com/InainthuOthuvom'
+            //Dashboard_Link: 'https://tinyurl.com/InainthuOthuvom'
         };
 
         // Template mapping:
