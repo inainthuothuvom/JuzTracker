@@ -664,14 +664,16 @@ function copyHadiyaNoteToClipboard() {
         escapeHtml(cur.ta || cur.en) + '</div>' +
         '<div style="font-size:0.9rem; color:#c9d1d9; margin-bottom:14px;">' +
         escapeHtml(cur.en) + '</div>' +
-        dedHtml +
-        '<div style="border:none; border-top:1px solid #21262d; margin-top:12px; margin-bottom:14px;"></div>' +
+        '<div style="border:none; border-top:1px solid #21262d; margin-bottom:14px;"></div>' +
         '<div style="font-size:0.85rem; color:#c9d1d9; line-height:1.7; margin-bottom:4px;">' +
         'Alhamdulillah, all assigned Juz recitations for this week have been completed successfully on time!</div>' +
         '<div style="font-size:0.85rem; color:#c9d1d9; line-height:1.7; text-align:start; margin-bottom:4px;">' +
         'Jazakumullahu Khairan for your swift dedication!</div>' +
         '<div style="font-size:0.85rem; color:#c9d1d9; line-height:1.7; text-align:start; margin-bottom:16px;">' +
         'The Khatam Hadiya is dedicated to and completed by the above member.</div>' +
+        '<div style="border:none; border-top:1px solid #21262d; margin-top:12px; margin-bottom:14px;"></div>' +
+        dedHtml +
+        '<div style="border:none; border-top:1px solid #21262d; margin-bottom:14px;"></div>' +
         '<div style="border:none; border-top:1px solid #21262d; margin-bottom:14px;"></div>' +
         '<div style="font-size:0.8rem; color:#8b949e; line-height:1.7; text-align:start; margin-bottom:10px;">' +
         tDua + '</div>' +
