@@ -16,14 +16,20 @@
 </head>
 <body>
 
-
-<div class="container">
+<div style="position:fixed; top:0; z-index:100; background:#0d1117; width:92%; max-width:480px; display:flex; flex-direction:column; align-items:center; padding:15px 32px 5px; border-bottom:1px solid #30363d;">
     <div class="hadiya-note-title">Inainthu Othuvom Beta</div>
-    <h2>இனைந்து ஓதுவோம்</h2>
+    <h2 style="margin:0;">இனைந்து ஓதுவோம்</h2>
+</div>
+
+<div class="container" style="margin-top:95px;">
     
     <div class="hadiya-container" id="hadiyaBox" style="display:none;">
         <span class="hadiya-title">This Week's Hadiya <br> இந்த வார ஹதியா</span>
         <div id="hadCurrent" class="hadiya-main">Loading...</div>
+        
+        <button id="hadiyaShareBtn" class="btn-hadiya-share" onclick="copyHadiyaNoteToClipboard()" style="margin-top:8px; width:100%; padding:10px; font-size:0.85rem;">
+            Hadiya Note 📋
+        </button>
         
         <div class="hadiya-grid">
             <div class="small-hadiya" id="prevSection" style="display:none;">
@@ -62,7 +68,10 @@
     <div id="loader">Fetching data...</div>
 
     <div id="result">
-        <div id="weekInfo" class="juz-badge"></div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div id="weekInfo" class="juz-badge"></div>
+            <span onclick="closeResult()" style="cursor:pointer; color:#8b949e; font-size:1.4rem; line-height:1;">&times;</span>
+        </div>
         
         <div class="data-row">
             <label>Arabic / உருது</label>
@@ -120,6 +129,15 @@
                 🔒 Updates are not allowed for future schedules.<br>எதிர்கால தேதிக்க்கு நிலையை புதுப்பிக்க இயலாது.
             </div>
             <div class="future-lock-banner" id="nextHadiyaLockBanner" style="display:none;"></div>
+            
+            <div class="support-assignment-widget" id="supportAssignmentWidget" style="display:none; margin-top:8px; padding:8px 12px; background:#1c2128; border-radius:6px; border:1px solid #30363d; font-size:0.8rem;">
+                <span style="color:#58a6ff; font-weight:600;">🤝 Support Reading:</span>
+                <span id="supportAssignmentDetails" style="color:#c9d1d9;"></span>
+                <span id="supportAssignmentStatusIcon" style="margin-left:4px;"></span>
+                <span>&nbsp;|&nbsp;</span>
+                <a href="#" onclick="openSupportAssignmentModal(); return false;" style="color:#5eead4; font-weight:600;">Update / மாற்ற</a>
+            </div>
+
 
             <div style="text-align:right; margin-top:6px;">
                 <button class="time-toggle-btn" id="mainTimeToggle" onclick="toggleTimePicker('main')" style="display:none">⏱ Set Time / நேரம்</button>
@@ -155,9 +173,6 @@
             <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;">
                 <button id="shareBtn" class="btn-share" onclick="copyReportToClipboard()" style="margin-top:0;flex:1;min-width:80px;padding:10px;font-size:0.8rem;">
                     Copy Report 📋
-                </button>
-                <button id="hadiyaShareBtn" class="btn-hadiya-share" onclick="copyHadiyaNoteToClipboard()" style="margin-top:0;flex:1;min-width:80px;padding:10px;font-size:0.8rem;">
-                    Hadiya Note 📋
                 </button>
                 <button id="searchToggleBtn" onclick="toggleSearchBar()" style="margin-top:0;width:auto;flex:none;background:none;border:2px solid #30363d;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:8px;" title="Search">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e6edf3" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -267,9 +282,9 @@
         <div style="text-align:right; margin-top:8px;">
             <button class="time-toggle-btn" id="reportTimeToggle" onclick="toggleTimePicker('report')">⏱ Set Time / நேரம்</button>
         </div>
-        <div class="time-picker-row" id="reportTimePickerRow">
+        <div class="time-picker-row" id="reportTimePickerRow" style="flex-direction:column;align-items:stretch;">
+            <button class="time-reset-btn" onclick="resetCustomTime('report')" style="width:100%;">Now / இப்போது</button>
             <input type="datetime-local" id="reportCustomTime">
-            <button class="time-reset-btn" onclick="resetCustomTime('report')">Now / இப்போது</button>
         </div>
         <button class="btn-status-completed status-btn" onclick="submitReportEditStatus('Completed')" style="margin-top:0; padding:12px;">Completed ✓</button>
         <button class="btn-status-reciting status-btn" onclick="submitReportEditStatus('Reciting')" style="margin-top:8px; padding:12px;">Reciting 🔄</button>
@@ -284,13 +299,13 @@
             <span class="modal-title" style="font-size:1rem; color:#d29922;">🎯 Add Dedication <br> அர்ப்பணிப்பை சேர்க்க</span>
             <span class="close-btn" onclick="closeDedicationModal()">&times;</span>
         </div>
-        <div style="font-size:0.8rem; color:#8b949e; margin-bottom:10px;">Add one or more dedications with purpose <br> நோக்கத்தை கொண்ட பெயர்களை சேர்க்கவும்</div>
+        <div style="font-size:0.8rem; color:#8b949e; margin-bottom:10px;">Add one or more dedications with intention <br> நோக்கத்தை கொண்ட பெயர்களை சேர்க்கவும்</div>
+        
+        <button class="btn-secondary" onclick="addDedicationEntry()" style="margin-top:4px; margin-bottom:8px; padding:8px; font-size:0.85rem; width:100%;">+ Add New Dedication</button>
         
         <div id="dedicationListContainer"></div>
         
-        <button class="btn-secondary" onclick="addDedicationEntry()" style="margin-top:8px; padding:8px; font-size:0.85rem; width:100%;">+ Add New Dedication</button>
-        
-        <button id="saveDedicationBtn" onclick="saveDedication()" style="margin-top:10px; padding:12px; background:#bb8009;">Save Dedication <br> அர்பணிப்புச் சேமி</button>
+        <button id="saveDedicationBtn" onclick="saveDedication()" style="margin-top:10px; padding:12px; background:#2e7d32; color:#fff; border:none; border-radius:8px; width:100%; font-size:0.9rem; font-weight:600; cursor:pointer; font-family:inherit;">Save Dedication <br> அர்பணிப்புச் சேமி</button>
         <button class="btn-secondary" style="margin-top:8px; padding:10px;" onclick="closeDedicationModal()">Back ←<br> பின்</button>
     </div>
 </div>
@@ -350,8 +365,29 @@
     </div>
 </div>
 
+<div id="supportAssignmentModal" class="modal" style="display:none;">
+    <div class="modal-content" style="max-width:420px;">
+        <div class="modal-header">
+            <span class="modal-title" style="color:#58a6ff;">🤝 உதவி வாசிப்பு நிலை / Support Status</span>
+            <span class="close-btn" onclick="closeSupportAssignmentModal()">&times;</span>
+        </div>
+        <div style="padding:12px 0;">
+            <div id="supportAssignmentModalInfo" style="font-size:0.85rem; color:#c9d1d9; margin-bottom:10px;"></div>
+            <div id="supportAssignmentJuzDetails" style="font-size:0.85rem; margin-bottom:12px; line-height:1.5;"></div>
+            <div style="border-top:1px solid #30363d; padding-top:12px;">
+                <div style="font-size:0.8rem; color:#8b949e; margin-bottom:8px;">Update your support status / உங்கள் நிலையை புதுப்பிக்கவும்</div>
+                <div style="display:flex; gap:8px;">
+                    <button class="btn-status-completed" onclick="submitSupportFromAssignment('Completed')" style="flex:1; padding:10px 8px; white-space:normal;">Completed ✅<br><span style="font-size:0.7rem;">நிறைவேற்றப்பட்டது</span></button>
+                    <button class="btn-status-reciting" onclick="submitSupportFromAssignment('Reciting')" style="flex:1; padding:10px 8px; white-space:normal;">Reciting 🔄<br><span style="font-size:0.7rem;">ஓதிக்கொண்டிருக்கிறேன்</span></button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
     <!-- EmailJS for email notifications -->
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <script src="config.js"></script>
     <script src="script-email.js"></script>
     <script src="script-utils.js"></script>
     <script src="script-supabase.js"></script>

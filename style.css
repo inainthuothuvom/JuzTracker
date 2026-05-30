@@ -13,10 +13,10 @@
             color: #e6edf3;
             margin: 0;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
             align-items: center;
             min-height: 100vh;
-            padding: 10px;
+            padding: 0;
         }
 
         .container {
@@ -177,6 +177,13 @@
             z-index: 10;
             white-space: nowrap;
         }
+        .hadiya-container.current-week { border: 2px solid #5eead4; }
+        .hadiya-container.past-week { border: 2px solid #8b949e; }
+        .hadiya-container.future-week { border: 2px solid #d29922; }
+        .dedication-entry-box input, .dedication-entry-box textarea {
+            width: 100%; background: #161b22; border: 1px solid #30363d; border-radius: 6px; color: #e6edf3; padding: 8px; font-size: 0.85rem; font-family: inherit; margin-bottom: 8px; box-sizing: border-box;
+        }
+        .dedication-entry-box input::placeholder, .dedication-entry-box textarea::placeholder { color: #8b949e; }
         .hadiya-title {
             font-size: 0.75rem;
             color: #7ee787;
@@ -505,7 +512,7 @@
         .btn-bulk-apply:hover { background: #2ea043; }
         .btn-bulk-apply:disabled { background: #30363d; cursor: not-allowed; }
         .bulk-checkbox { width: 18px; height: 18px; cursor: pointer; accent-color: #2ea043; margin: 0; vertical-align: middle; }
-        .bulk-checkbox-cell { width: 32px; min-width: 32px; text-align: center; padding: 4px !important; }
+        .bulk-checkbox-cell { width: 32px; min-width: 32px; text-align: center; padding: 14px 4px; vertical-align: top; }
         .btn-bulk-toggle { background: #21262d; border: 2px solid #30363d; border-radius: 8px; color: #c9d1d9; font-size: 0.8rem; font-weight: 600; padding: 8px 12px; cursor: pointer; font-family: inherit; margin-top: 0; width: auto; transition: all 0.2s; }
         .btn-bulk-toggle:hover { border-color: #d29922; color: #d29922; }
         .btn-bulk-toggle.active { background: #2d1f00; border-color: #d29922; color: #d29922; }
@@ -633,7 +640,8 @@
             .bulk-checkbox-cell {
                 width: clamp(16px, 5.5vw, 22px);
                 min-width: clamp(16px, 5.5vw, 22px);
-                padding: 1px !important;
+                padding: 6px 2px;
+                vertical-align: top;
             }
             .bulk-checkbox { width: 12px; height: 12px; }
             .report-time-edit {

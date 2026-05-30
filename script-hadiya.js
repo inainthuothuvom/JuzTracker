@@ -13,14 +13,30 @@ function fetchHadiyaDetails(dateVal) {
 var countdownInterval = null;
 function startHadiyaCountdown(deadlineISO) {
     if (countdownInterval) clearInterval(countdownInterval);
-    if (!deadlineISO) return;
-    var target = new Date(deadlineISO);
     var dEl = document.getElementById('hadiyaCounterDays');
     var hEl = document.getElementById('hadiyaCounterHms');
     if (!dEl || !hEl) return;
+    
+    // Handle Date objects or strings
+    var target;
+    var s = deadlineISO ? String(deadlineISO).trim().replace(' ', 'T') : '';
+    if (deadlineISO instanceof Date) {
+        target = deadlineISO;
+    } else if (deadlineISO) {
+        target = new Date(s);
+    }
+    
+    if (!target || isNaN(target.getTime())) {
+        dEl.textContent = '--';
+        hEl.textContent = '--:--:--';
+        return;
+    }
+    
     function update() {
         var now = new Date();
-        var diff = target - now;
+        var IST_MS = 5.5 * 3600000;
+        var nowIST = new Date(now.getTime() + now.getTimezoneOffset() * 60000 + IST_MS);
+        var diff = target - nowIST;
         if (diff <= 0) {
             dEl.textContent = '0D';
             hEl.textContent = '00:00:00';
@@ -103,16 +119,32 @@ function navigateHadiya(dir) {
 }
 
 function displayHadiya(res) {
-    document.getElementById('hadiyaBox').classList.remove('hadiya-loading');
+    var hadiyaBox = document.getElementById('hadiyaBox');
+    hadiyaBox.classList.remove('hadiya-loading');
+    hadiyaBox.classList.remove('current-week', 'past-week', 'future-week');
+    
     if (!res || !res.current) {
-        document.getElementById('hadiyaBox').style.display = "none";
+        hadiyaBox.style.display = "none";
         currentHadiyaDetails = null;
+        var shareBtn = document.getElementById('hadiyaShareBtn');
+        if (shareBtn) { shareBtn.style.display = 'none'; }
         return;
     }
-    document.getElementById('hadiyaBox').style.display = "block";
+    hadiyaBox.style.display = "block";
     currentHadiyaDetails = res;
-
+    
     var cur = res.current;
+    var isCompleted = cur.status === "Completed";
+    var isCurrentWeek = res.currentIndex === res.todayIndex;
+    
+    // Apply color class
+    if (isCurrentWeek) {
+        hadiyaBox.classList.add('current-week');
+    } else if (cur.weekEndDate && new Date(cur.weekEndDate) < new Date()) {
+        hadiyaBox.classList.add('past-week');
+    } else {
+        hadiyaBox.classList.add('future-week');
+    }
 
     var headerHtml = `<div class="hadiya-header">
         <div style="font-size:0.75rem; color:#7ee787; font-weight:bold;">
@@ -132,20 +164,32 @@ function displayHadiya(res) {
         <div style="font-size:0.75rem; color:#8b949e;">${cur.ta}</div>
     </div>`;
 
-    var isCompleted = cur.status === "Completed";
-    var isCurrentWeek = res.currentIndex === res.todayIndex;
     var deadlineDisplay = '';
     var counterCol = '';
+    var shouldStartCountdown = false;
     
     // Show countdown only for current week and before next Hadiya start
-    if (!isCompleted && cur.deadlineDisplay && isCurrentWeek) {
+    if (!isCompleted && cur.deadlineISO && isCurrentWeek) {
         var canShowCountdown = true;
         if (cur.nextStartISO && cur.nextStartISO.length > 0) {
             var now = new Date();
             var IST_MS = 5.5 * 3600000;
             var nowIST = new Date(now.getTime() + now.getTimezoneOffset() * 60000 + IST_MS);
-            var nextStart = new Date(cur.nextStartISO);
-            canShowCountdown = nowIST.getTime() < nextStart.getTime();
+            // Parse nextStartISO - handle both timezone-aware and local times
+            var s = String(cur.nextStartISO).trim().replace(' ', 'T');
+            var nextStart = new Date(s);
+            if (!isNaN(nextStart.getTime())) {
+                canShowCountdown = nowIST.getTime() < nextStart.getTime();
+            } else {
+                // Try parsing as local time (for format without timezone)
+                var p = s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/);
+                if (p) {
+                    nextStart = new Date(+p[1], +p[2]-1, +p[3], +p[4], +p[5], +(p[6]||0));
+                    if (!isNaN(nextStart.getTime())) {
+                        canShowCountdown = nowIST.getTime() < nextStart.getTime();
+                    }
+                }
+            }
         }
         
         if (canShowCountdown) {
@@ -155,7 +199,7 @@ function displayHadiya(res) {
                 <div class="counter-hms" id="hadiyaCounterHms">--:--:--</div>
                 <div class="hadiya-deadline-label" style="font-size:0.55rem;color:#8b949e;margin-top:1px;white-space:nowrap;">Deadline: ${deadlineDisplay}</div>
             </div>`;
-            startHadiyaCountdown(cur.deadlineISO);
+            shouldStartCountdown = true;
         }
     }
 
@@ -163,19 +207,37 @@ function displayHadiya(res) {
 
     var dedicationHtml = '';
     if (hasDedication) {
-        var purposes = cur.dedicatedPurposeEn ? cur.dedicatedPurposeEn.split(';').map(s => s.trim()).filter(s => s) : [];
-        var purposeTas = cur.dedicatedPurposeTa ? cur.dedicatedPurposeTa.split(';').map(s => s.trim()).filter(s => s) : [];
-        var purposeHtml = '';
-        
-        for (var i = 0; i < purposes.length; i++) {
-            purposeHtml += `<div style="font-size:0.75rem; color:#8b949e; margin-top:2px;">${purposeTas[i] || purposes[i]}</div>`;
+        var dNamesEn = cur.dedicatedToEn ? cur.dedicatedToEn.split(';').map(function(s) { return s.trim(); }).filter(function(s) { return s; }) : [];
+        var dNamesTa = cur.dedicatedToTa ? cur.dedicatedToTa.split(';').map(function(s) { return s.trim(); }).filter(function(s) { return s; }) : [];
+        var dPurpEn = cur.dedicatedPurposeEn ? cur.dedicatedPurposeEn.split(';').map(function(s) { return s.trim(); }).filter(function(s) { return s; }) : [];
+        var dPurpTa = cur.dedicatedPurposeTa ? cur.dedicatedPurposeTa.split(';').map(function(s) { return s.trim(); }).filter(function(s) { return s; }) : [];
+        var dedEntriesHtml = '';
+        for (var di = 0; di < dNamesEn.length; di++) {
+            var rows = '';
+            rows += '<div style="font-size:0.8rem; color:#e6edf3;"><strong>Name:</strong></div>' +
+                    '<div style="font-size:0.8rem; color:#e6edf3;">' + escapeHtml(dNamesEn[di]) + '</div>';
+            rows += '<div></div>' +
+                    '<div style="font-size:0.75rem; color:#8b949e;">' + escapeHtml(dNamesTa[di] || dNamesEn[di]) + '</div>';
+            if (dPurpEn[di]) {
+                rows += '<div style="font-size:0.75rem; color:#c9d1d9;"><strong>Intention:</strong></div>' +
+                        '<div style="font-size:0.75rem; color:#c9d1d9;">' + escapeHtml(dPurpEn[di]) + '</div>';
+            }
+            if (dPurpTa[di]) {
+                rows += '<div></div>' +
+                        '<div style="font-size:0.7rem; color:#8b949e;">' + escapeHtml(dPurpTa[di]) + '</div>';
+            }
+            dedEntriesHtml += '<div style="margin-bottom:6px; padding-bottom:4px;' + (di < dNamesEn.length - 1 ? 'border-bottom:1px solid #30363d;' : '') + '">' +
+                '<div style="display:grid; grid-template-columns:auto 1fr; gap:1px 10px; align-items:start;">' + rows + '</div>' +
+            '</div>';
         }
-        
-        dedicationHtml = `<div class="hadiya-name-col" style="margin-top:2px;">
-            <div style="font-size:0.75rem; color:#d29922; font-weight:600;">🎯 Dedicated | அர்பணித்தல்:</div>
-            <div style="font-size:1rem; font-weight:600; color:#d29972;">${dedName}</div>
-            ${purposeHtml}
-        </div>`;
+        var isExpanded = localStorage.getItem('hadiyaDedicationExpanded') === 'true';
+        dedicationHtml = '<div class="hadiya-name-col" style="margin-top:2px;">' +
+            '<div onclick="toggleDedicationExpand()" style="cursor:pointer; font-size:0.75rem; color:#d29922; font-weight:600; margin-bottom:2px; user-select:none;">' +
+            '<span id="dedExpandIcon">' + (isExpanded ? '▼' : '▶') + '</span> 🎯 Dedicated | அர்பணித்தல்:</div>' +
+            '<div id="dedicationDetails" style="' + (isExpanded ? 'display:block;' : 'display:none;') + '">' +
+            dedEntriesHtml +
+            '</div>' +
+        '</div>';
     }
 
     var statusLabel = isCompleted ? '✅ Completed | நிறைவேறியது' : '⏳ Pending | நிலுவையில்';
@@ -189,6 +251,10 @@ function displayHadiya(res) {
         </div>` : '';
 
     document.getElementById('hadCurrent').innerHTML = headerHtml + nameRow + dedicationHtml + (isCompleted ? statusHtml : '') + pendingBadge;
+
+    if (shouldStartCountdown) {
+        startHadiyaCountdown(cur.deadlineISO);
+    }
 
     const prevSec = document.getElementById('prevSection');
     if (res.previous) {
@@ -213,6 +279,21 @@ function displayHadiya(res) {
     } else {
         nextSec.style.display = "none";
     }
+
+    var shareBtn = document.getElementById('hadiyaShareBtn');
+    if (shareBtn) {
+        if (isCompleted) {
+            shareBtn.style.display = 'block';
+            shareBtn.disabled = false;
+            shareBtn.style.opacity = '1';
+            shareBtn.style.cursor = 'pointer';
+        } else {
+            shareBtn.style.display = 'block';
+            shareBtn.disabled = true;
+            shareBtn.style.opacity = '0.4';
+            shareBtn.style.cursor = 'not-allowed';
+        }
+    }
 }
 
 function updateHadiyaStatusUI(newStatus) {
@@ -229,10 +310,12 @@ function updateHadiyaStatusUI(newStatus) {
 }
 
 var dedicationEntries = [];
+var isEditingDedication = false;
 
 function openDedicationModal() {
     document.getElementById('dedicationModal').style.display = "flex";
     dedicationEntries = [];
+    isEditingDedication = false;
     loadExistingDedications();
 }
 
@@ -249,16 +332,18 @@ function loadExistingDedications() {
         
         var entries = [];
         if (dedEn && dedEn.length > 0) {
-            var names = dedEn.split(';').map(s => s.trim()).filter(s => s);
-            var purposes = purpEn ? purpEn.split(';').map(s => s.trim()).filter(s => s) : [];
-            var purposeTas = purpTa ? purpTa.split(';').map(s => s.trim()).filter(s => s) : [];
+            var names = dedEn.split(';').map(function(s) { return s.trim(); }).filter(function(s) { return s; });
+            var nameTas = dedTa ? dedTa.split(';').map(function(s) { return s.trim(); }).filter(function(s) { return s; }) : [];
+            var purposes = purpEn ? purpEn.split(';').map(function(s) { return s.trim(); }).filter(function(s) { return s; }) : [];
+            var purposeTas = purpTa ? purpTa.split(';').map(function(s) { return s.trim(); }).filter(function(s) { return s; }) : [];
             
-            for (var i = 0; i < names.length; i++) {
+            for (var i = names.length - 1; i >= 0; i--) {
                 entries.push({
                     nameEn: names[i],
-                    nameTa: (dedTa.split(';')[i] || names[i]).trim(),
+                    nameTa: (nameTas[i] || names[i]).trim(),
                     purposeEn: purposes[i] || '',
-                    purposeTa: purposeTas[i] || ''
+                    purposeTa: purposeTas[i] || '',
+                    hasIntention: !!(purposes[i] && purposes[i].trim())
                 });
             }
         }
@@ -266,7 +351,8 @@ function loadExistingDedications() {
         dedicationEntries = entries;
         renderDedicationEntries();
     } else {
-        dedicationEntries = [{ nameEn: '', nameTa: '', purposeEn: '', purposeTa: '' }];
+        dedicationEntries = [{ nameEn: '', nameTa: '', purposeEn: '', purposeTa: '', hasIntention: true }];
+        isEditingDedication = true;
         renderDedicationEntries();
     }
 }
@@ -274,68 +360,242 @@ function loadExistingDedications() {
 function renderDedicationEntries() {
     var container = document.getElementById('dedicationListContainer');
     var html = '';
+    var tBtnStyle = 'background:none;border:1px solid #30363d;border-radius:4px;color:#5eead4;font-size:0.7rem;padding:4px 8px;margin-bottom:6px;margin-top:2px;cursor:pointer;';
+    var arrBtnStyle = 'background:none;border:1px solid #30363d;border-radius:4px;color:#8b949e;font-size:0.75rem;padding:2px 8px;cursor:pointer;';
+    var delBtnStyle = 'background:none;border:1px solid #f87171;border-radius:4px;color:#f87171;font-size:0.7rem;padding:3px 8px;cursor:pointer;';
+    var trashSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
     
     dedicationEntries.forEach(function(entry, idx) {
-        html += `
-        <div class="dedication-entry-box" style="border:1px solid #30363d; border-radius:8px; padding:12px; margin-bottom:10px; position:relative; background:#0d1117;">
-            <span class="close-btn" onclick="removeDedicationEntry(${idx})" style="position:absolute; top:6px; right:6px; font-size:1.2rem; cursor:pointer;">&times;</span>
-            
-            <div style="font-size:0.75rem; color:#c9d1d9; margin-bottom:4px; font-weight:600;">Name (English)</div>
-            <input type="text" id="dedNameEn${idx}" value="${entry.nameEn}" placeholder="Name in English" style="width:100%; background:#161b22; border:1px solid #30363d; border-radius:6px; color:#e6edf3; padding:8px; font-size:0.85rem; font-family:inherit; margin-bottom:8px; box-sizing:border-box;">
-            
-            <div style="font-size:0.75rem; color:#c9d1d9; margin-bottom:4px; font-weight:600;">பெயர் (தமிழ்)</div>
-            <input type="text" id="dedNameTa${idx}" value="${entry.nameTa}" placeholder="பெயர் தமிழில்" style="width:100%; background:#161b22; border:1px solid #30363d; border-radius:6px; color:#e6edf3; padding:8px; font-size:0.85rem; font-family:inherit; margin-bottom:8px; box-sizing:border-box;">
-            
-            <div style="font-size:0.75rem; color:#c9d1d9; margin-bottom:4px; font-weight:600;">Purpose (English) <button onclick="translatePurpose(${idx}, 'toTa')" style="background:none; border:1px solid #30363d; border-radius:4px; color:#5eead4; font-size:0.7rem; padding:2px 6px; margin-left:6px;">Translate to தமிழ்</button></div>
-            <textarea id="dedPurposeEn${idx}" placeholder="Purpose in English" style="width:100%; background:#161b22; border:1px solid #30363d; border-radius:6px; color:#e6edf3; padding:8px; font-size:0.85rem; font-family:inherit; margin-bottom:8px; box-sizing:border-box; min-height:50px;">${entry.purposeEn}</textarea>
-            
-            <div style="font-size:0.75rem; color:#c9d1d9; margin-bottom:4px; font-weight:600;">நோக்கம் (தமிழ்) <button onclick="translatePurpose(${idx}, 'toEn')" style="background:none; border:1px solid #30363d; border-radius:4px; color:#5eead4; font-size:0.7rem; padding:2px 6px; margin-left:6px;">Translate to English</button></div>
-            <textarea id="dedPurposeTa${idx}" placeholder="நோக்கம் தமிழில்" style="width:100%; background:#161b22; border:1px solid #30363d; border-radius:6px; color:#e6edf3; padding:8px; font-size:0.85rem; font-family:inherit; margin-bottom:4px; box-sizing:border-box; min-height:50px;">${entry.purposeTa}</textarea>
-        </div>`;
+        if (isEditingDedication) {
+            html += `
+            <div class="dedication-entry-box" style="border:1px solid #30363d; border-radius:8px; padding:12px; margin-bottom:10px; position:relative; background:#0d1117;">
+                <div style="position:absolute; top:6px; right:6px; display:flex; gap:4px;">
+                    <span onclick="confirmRemoveDedication(${idx})" style="font-size:0.9rem; cursor:pointer; color:#f87171; display:flex; align-items:center;" title="Remove">${trashSvg}</span>
+                </div>
+                <div style="font-size:0.75rem; color:#c9d1d9; margin-bottom:4px; font-weight:600;">Name (English)</div>
+                <input type="text" id="dedNameEn${idx}" value="${entry.nameEn}" placeholder="Name in English" style="width:100%; background:#161b22; border:1px solid #30363d; border-radius:6px; color:#e6edf3; padding:8px; font-size:0.85rem; font-family:inherit; margin-bottom:2px; box-sizing:border-box;">
+                <div><button onclick="translateField(${idx}, 'Name', 'toTa')" style="${tBtnStyle}">Translate to தமிழ்</button></div>
+
+                <div style="font-size:0.75rem; color:#c9d1d9; margin-bottom:4px; font-weight:600;">பெயர் (தமிழ்)</div>
+                <input type="text" id="dedNameTa${idx}" value="${entry.nameTa}" placeholder="பெயர் தமிழில்" style="width:100%; background:#161b22; border:1px solid #30363d; border-radius:6px; color:#e6edf3; padding:8px; font-size:0.85rem; font-family:inherit; margin-bottom:2px; box-sizing:border-box;">
+                <div><button onclick="translateField(${idx}, 'Name', 'toEn')" style="${tBtnStyle}">Translate to English</button></div>
+
+                <div style="margin:8px 0 4px; display:flex; align-items:center; justify-content:space-between;">
+                    <label for="dedHasIntention${idx}" style="font-size:0.75rem; color:#c9d1d9; cursor:pointer;">Has Intention / நோக்கம் உள்ளது</label>
+                    <input type="checkbox" id="dedHasIntention${idx}" onchange="toggleIntentionFields(${idx})" ${entry.hasIntention ? 'checked' : ''} style="accent-color:#2e7d32; width:16px; height:16px;">
+                </div>
+
+                <div id="intentionFields${idx}" style="${entry.hasIntention ? '' : 'display:none;'}">
+                    <div style="font-size:0.75rem; color:#c9d1d9; margin-bottom:4px; font-weight:600;">Intention (English)</div>
+                    <textarea id="dedPurposeEn${idx}" placeholder="Intention in English" style="width:100%; background:#161b22; border:1px solid #30363d; border-radius:6px; color:#e6edf3; padding:8px; font-size:0.85rem; font-family:inherit; margin-bottom:2px; box-sizing:border-box; min-height:50px;">${entry.purposeEn}</textarea>
+                    <div><button onclick="translateField(${idx}, 'Purpose', 'toTa')" style="${tBtnStyle}">Translate to தமிழ்</button></div>
+
+                    <div style="font-size:0.75rem; color:#c9d1d9; margin-bottom:4px; font-weight:600;">நோக்கம் (தமிழ்)</div>
+                    <textarea id="dedPurposeTa${idx}" placeholder="நோக்கம் தமிழில்" style="width:100%; background:#161b22; border:1px solid #30363d; border-radius:6px; color:#e6edf3; padding:8px; font-size:0.85rem; font-family:inherit; margin-bottom:2px; box-sizing:border-box; min-height:50px;">${entry.purposeTa}</textarea>
+                    <div><button onclick="translateField(${idx}, 'Purpose', 'toEn')" style="${tBtnStyle}">Translate to English</button></div>
+                </div>
+
+                <div style="display:flex; gap:6px; margin-top:4px;">
+                    <button onclick="moveDedication(${idx}, -1)" style="${arrBtnStyle}" ${idx === 0 ? 'disabled' : ''}>▲ Up</button>
+                    <button onclick="moveDedication(${idx}, 1)" style="${arrBtnStyle}" ${idx === dedicationEntries.length - 1 ? 'disabled' : ''}>▼ Down</button>
+                </div>
+            </div>`;
+        } else {
+            html += `
+            <div class="dedication-entry-box" draggable="true"
+                 data-index="${idx}"
+                 ondragstart="dragStart(event, ${idx})"
+                 ondragend="dragEnd(event)"
+                 ondragover="dragOver(event, ${idx})"
+                 ondragleave="dragLeave(event)"
+                 ondrop="dropReorder(event, ${idx})"
+                 style="border:1px solid #30363d; border-radius:8px; padding:12px; margin-bottom:10px; position:relative; background:#0d1117;">
+                <div style="position:absolute; top:6px; right:8px; display:flex; gap:6px; align-items:center;">
+                    <span onclick="confirmRemoveDedication(${idx})" style="font-size:0.8rem; cursor:pointer; color:#f87171; display:flex; align-items:center;" title="Remove">${trashSvg}</span>
+                    <span style="font-size:1rem; color:#8b949e; cursor:grab; user-select:none;">⠿</span>
+                </div>
+                <div style="font-size:0.85rem; color:#e6edf3;"><strong>Name:</strong> ${escapeHtml(entry.nameEn)}</div>
+                <div style="margin-left:12px; font-size:0.8rem; color:#8b949e;">${escapeHtml(entry.nameTa)}</div>
+                <div style="margin:6px 0; border-top:1px solid #30363d;"></div>
+                ${entry.purposeEn ? '<div style="font-size:0.8rem; color:#c9d1d9;"><strong>Intention:</strong> ' + escapeHtml(entry.purposeEn) + '</div>' : ''}
+                ${entry.purposeTa ? '<div style="margin-left:12px; font-size:0.75rem; color:#8b949e;">' + escapeHtml(entry.purposeTa) + '</div>' : ''}
+            </div>`;
+        }
     });
     
-    container.innerHTML = html;
-    if (dedicationEntries.length === 0) {
-        container.innerHTML = '<div style="font-size:0.8rem;color:#8b949e;margin-bottom:8px;">No dedications added yet.</div>';
+    var toggleHtml = '';
+    if (isEditingDedication) {
+        toggleHtml = '<div style="margin-bottom:8px;"><button onclick="cancelDedicationEdit()" style="background:none;border:1px solid #f87171;border-radius:6px;color:#f87171;padding:6px 14px;font-size:0.8rem;cursor:pointer;font-family:inherit;">✕ Cancel Editing</button></div>';
+    } else if (dedicationEntries.length > 0) {
+        toggleHtml = '<div style="margin-bottom:8px;"><button onclick="enableDedicationEdit()" style="background:none;border:1px solid #5eead4;border-radius:6px;color:#5eead4;padding:6px 14px;font-size:0.8rem;cursor:pointer;font-family:inherit;">✏️ Edit</button></div>';
     }
+    container.innerHTML = toggleHtml + (html || '<div style="font-size:0.8rem;color:#8b949e;">No dedications added yet.</div>');
+}
+
+function escapeHtml(t) {
+    var d = document.createElement('div');
+    d.appendChild(document.createTextNode(t));
+    return d.innerHTML;
+}
+
+function enableDedicationEdit() {
+    isEditingDedication = true;
+    renderDedicationEntries();
+}
+
+function cancelDedicationEdit() {
+    isEditingDedication = false;
+    loadExistingDedications();
 }
 
 function addDedicationEntry() {
-    dedicationEntries.push({ nameEn: '', nameTa: '', purposeEn: '', purposeTa: '' });
+    if (!isEditingDedication) enableDedicationEdit();
+    dedicationEntries.unshift({ nameEn: '', nameTa: '', purposeEn: '', purposeTa: '', hasIntention: true });
     renderDedicationEntries();
 }
 
 function removeDedicationEntry(idx) {
-    if (confirm("Remove this dedication? / இந்த அர்ப்பணிப்பை நீக்கவேண்டியதா?")) {
-        dedicationEntries.splice(idx, 1);
-        renderDedicationEntries();
+    dedicationEntries.splice(idx, 1);
+    renderDedicationEntries();
+}
+
+function confirmRemoveDedication(idx) {
+    var overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:center;justify-content:center;';
+    var modal = document.createElement('div');
+    modal.style.cssText = 'background:#161b22;border:1px solid #30363d;border-radius:12px;padding:24px;max-width:340px;width:90%;text-align:center;';
+    modal.innerHTML =
+        '<div style="font-size:1rem;color:#f87171;font-weight:600;margin-bottom:8px;">Remove Dedication?</div>' +
+        '<div style="font-size:0.85rem;color:#8b949e;margin-bottom:16px;">இந்த அர்ப்பணிப்பை நீக்கவேண்டியதா?</div>' +
+        '<div style="display:flex;gap:8px;justify-content:center;">' +
+        '<button id="confirmDelYes" style="background:#da3633;color:#fff;border:none;border-radius:8px;padding:8px 20px;font-size:0.85rem;cursor:pointer;font-family:inherit;">Remove</button>' +
+        '<button id="confirmDelNo" style="background:#21262d;color:#c9d1d9;border:none;border-radius:8px;padding:8px 20px;font-size:0.85rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
+        '</div>';
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    document.getElementById('confirmDelYes').onclick = function() { document.body.removeChild(overlay); removeDedicationEntry(idx); };
+    document.getElementById('confirmDelNo').onclick = function() { document.body.removeChild(overlay); };
+    overlay.onclick = function(e) { if (e.target === overlay) document.body.removeChild(overlay); };
+}
+
+function moveDedication(idx, dir) {
+    var target = idx + dir;
+    if (target < 0 || target >= dedicationEntries.length) return;
+    var tmp = dedicationEntries[idx];
+    dedicationEntries[idx] = dedicationEntries[target];
+    dedicationEntries[target] = tmp;
+    renderDedicationEntries();
+}
+
+// Drag and drop for view mode reordering
+var dragSourceIdx = null;
+
+function dragStart(event, idx) {
+    dragSourceIdx = idx;
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', idx);
+    event.target.style.opacity = '0.4';
+}
+
+function dragEnd(event) {
+    event.target.style.opacity = '1';
+    dragSourceIdx = null;
+    document.querySelectorAll('.dedication-entry-box').forEach(function(el) {
+        el.style.borderColor = '#30363d';
+    });
+}
+
+function dragOver(event, idx) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    if (dragSourceIdx !== idx) {
+        event.target.style.borderColor = '#5eead4';
     }
 }
 
-function translatePurpose(idx, direction) {
-    var srcEn = document.getElementById('dedPurposeEn' + idx).value;
-    var srcTa = document.getElementById('dedPurposeTa' + idx).value;
-    var targetField = direction === 'toTa' ? document.getElementById('dedPurposeTa' + idx) : document.getElementById('dedPurposeEn' + idx);
-    var sourceText = direction === 'toTa' ? srcEn : srcTa;
-    
-    if (!sourceText.trim()) {
+function dragLeave(event) {
+    event.target.style.borderColor = '#30363d';
+}
+
+function dropReorder(event, targetIdx) {
+    event.preventDefault();
+    event.target.style.borderColor = '#30363d';
+    var sourceIdx = parseInt(event.dataTransfer.getData('text/plain'));
+    if (isNaN(sourceIdx)) sourceIdx = dragSourceIdx;
+    if (sourceIdx === null || sourceIdx === targetIdx) return;
+    var item = dedicationEntries.splice(sourceIdx, 1)[0];
+    var adjustedTarget = targetIdx > sourceIdx ? targetIdx - 1 : targetIdx;
+    dedicationEntries.splice(adjustedTarget, 0, item);
+    renderDedicationEntries();
+}
+
+function toggleDedicationExpand() {
+    var d = document.getElementById('dedicationDetails');
+    var e = document.getElementById('dedExpandIcon');
+    if (!d || !e) return;
+    if (d.style.display === 'none' || !d.style.display) {
+        d.style.display = 'block';
+        e.textContent = '▼';
+        localStorage.setItem('hadiyaDedicationExpanded', 'true');
+    } else {
+        d.style.display = 'none';
+        e.textContent = '▶';
+        localStorage.setItem('hadiyaDedicationExpanded', 'false');
+    }
+}
+
+function toggleIntentionFields(idx) {
+    var cb = document.getElementById('dedHasIntention' + idx);
+    var fields = document.getElementById('intentionFields' + idx);
+    if (cb && fields) {
+        fields.style.display = cb.checked ? '' : 'none';
+        if (!cb.checked) {
+            var en = document.getElementById('dedPurposeEn' + idx);
+            var ta = document.getElementById('dedPurposeTa' + idx);
+            if (en) en.value = '';
+            if (ta) ta.value = '';
+        }
+    }
+}
+
+function translateField(idx, field, direction) {
+    var prefix = field === 'Name' ? 'dedName' : 'dedPurpose';
+    var srcId = prefix + (direction === 'toTa' ? 'En' : 'Ta') + idx;
+    var tgtId = prefix + (direction === 'toTa' ? 'Ta' : 'En') + idx;
+    var srcEl = document.getElementById(srcId);
+    var tgtEl = document.getElementById(tgtId);
+    if (!srcEl || !tgtEl) return;
+    var sourceText = srcEl.value.trim();
+    if (!sourceText) {
         showSnackbar("Enter text to translate / மொழிபடுத்த உரையை உள்ளிடவும்", true);
         return;
     }
-    
-    // Use free translation API (MyMemory)
-    var url = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(sourceText) + '&langpair=' + (direction === 'toTa' ? 'en|ta' : 'ta|en');
-    
-    fetch(url).then(function(res) {
-        return res.json();
-    }).then(function(data) {
-        if (data && data.responseData && data.responseData.translatedText) {
-            targetField.value = data.responseData.translatedText;
+
+    function setResult(t) { if (t) tgtEl.value = t; else showSnackbar("Transliteration failed / மொழிபெயர்ப்பு தோல்வி", true); }
+
+    var mode = field === 'Name' ? 'transliterate (convert by sound only)' : 'translate (convert by meaning, then transliterate the result)';
+    var srcLang = direction === 'toTa' ? 'English' : 'Tamil';
+    var tgtLang = direction === 'toTa' ? 'Tamil' : 'English';
+    var prompt = 'You are a Tamil-English translator. ' + mode + ' the given text from ' + srcLang + ' to ' + tgtLang + '. Handle Arabic-origin words (like Magfirrath, Salman, etc.) correctly by sound. Return ONLY the result with no extra words, quotes, or formatting.\n\n' + sourceText;
+
+    fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + GROQ_KEY },
+        body: JSON.stringify({
+            model: 'llama-3.3-70b-versatile',
+            messages: [{ role: 'user', content: prompt }],
+            max_tokens: 200
+        })
+    }).then(function(r) { return r.json(); }).then(function(d) {
+        if (d && d.choices && d.choices[0] && d.choices[0].message && d.choices[0].message.content) {
+            setResult(d.choices[0].message.content.trim());
+        } else if (d && d.error) {
+            showSnackbar("Groq error: " + d.error.message, true);
         } else {
-            showSnackbar("Translation failed / மொழிபடுத்தல் தோல்வியடைந்தது", true);
+            setResult(null);
         }
     }).catch(function(err) {
-        showSnackbar("Translation error / மொழிபடுத்தல் பிழை", true);
+        showSnackbar("Translation error / மொழிபெயர்ப்பு பிழை", true);
     });
 }
 
@@ -346,37 +606,38 @@ function closeDedicationModal() {
 function saveDedication() {
     var dateVal = document.getElementById('dateInput').value;
     if (!dateVal) { showSnackbar("Select a date first.", true); return; }
+    if (!isEditingDedication) { showSnackbar("Click 'Edit' first to modify dedications.", true); return; }
     
-    // Collect all dedication data
     var namesEn = [];
     var namesTa = [];
     var purposesEn = [];
     var purposesTa = [];
     
-    dedicationEntries.forEach(function(entry) {
-        if (entry.nameEn.trim() || entry.nameTa.trim()) {
-            namesEn.push(entry.nameEn.trim());
-            namesTa.push(entry.nameTa.trim() || entry.nameEn.trim());
-            purposesEn.push(entry.purposeEn.trim());
-            purposesTa.push(entry.purposeTa.trim());
-        }
-    });
-    
-    // Update entries from inputs
-    for (var i = 0; i < 10; i++) {
-        var nameEn = document.getElementById('dedNameEn' + i);
-        var nameTa = document.getElementById('dedNameTa' + i);
-        var purpEn = document.getElementById('dedPurposeEn' + i);
-        var purpTa = document.getElementById('dedPurposeTa' + i);
+    // Find all rendered inputs in the DOM
+    var idx = 0;
+    while (true) {
+        var nameEn = document.getElementById('dedNameEn' + idx);
+        var nameTa = document.getElementById('dedNameTa' + idx);
+        var purpEn = document.getElementById('dedPurposeEn' + idx);
+        var purpTa = document.getElementById('dedPurposeTa' + idx);
+        var hasIntCb = document.getElementById('dedHasIntention' + idx);
         
-        if (nameEn && nameTa && purpEn && purpTa) {
-            if (nameEn.value.trim() || nameTa.value.trim()) {
-                namesEn.push(nameEn.value.trim());
-                namesTa.push(nameTa.value.trim());
-                purposesEn.push(purpEn.value.trim());
-                purposesTa.push(purpTa.value.trim());
+        if (!nameEn || !nameTa) break;
+        
+        var ne = nameEn.value.trim();
+        var nt = nameTa.value.trim();
+        if (ne || nt) {
+            namesEn.push(ne);
+            namesTa.push(nt || ne);
+            if (hasIntCb && hasIntCb.checked) {
+                purposesEn.push(purpEn ? purpEn.value.trim() : '');
+                purposesTa.push(purpTa ? purpTa.value.trim() : '');
+            } else {
+                purposesEn.push('');
+                purposesTa.push('');
             }
         }
+        idx++;
     }
     
     document.getElementById('saveDedicationBtn').disabled = true;

@@ -109,7 +109,7 @@
                         if (!isNaN(d.getTime())) cutoffTime = d;
                     }
                     
-                    var isBeforeNextStart = cutoffTime && now.getTime() < cutoffTime.getTime();
+                    var isBeforeNextStart = cutoffTime && istNow.getTime() < cutoffTime.getTime();
                     
                     // Adjust inputDate if before cutoff and today is Friday
                     var adjustedInputDate = inputDate;
@@ -193,9 +193,41 @@
                             statusTimestamp: statusTimestamp,
                             supportedByName: supportedByName,
                             supportedById: supportedById,
-                            supportStatus: supportStatus
+                            supportStatus: supportStatus,
+                            supportingName: '',
+                            supportingNameTa: '',
+                            supportingUserId: '',
+                            supportingJuz: '',
+                            supportingJuzAr: '',
+                            supportingJuzEn: '',
+                            supportingJuzTa: '',
+                            supportAssignmentStatus: ''
                         };
-                        if (_ok) _ok(result);
+                        // Find what this user is supporting (if they are a backup reader)
+                        _supabase.from('weekly_status').select('member_id,member_name,juz_number,support_status,week_start').eq('supported_by_id', userId).eq('week_start', st.week_start).limit(1).then(function(rSup) {
+                            if (rSup.data && rSup.data.length > 0) {
+                                var sup = rSup.data[0];
+                                result.supportingName = sup.member_name || '';
+                                result.supportingUserId = sup.member_id || '';
+                                result.supportingJuz = String(sup.juz_number || '');
+                                result.supportAssignmentStatus = sup.support_status || 'Reciting';
+                                // Look up Tamil name from members table
+                                _supabase.from('members').select('name_ta').eq('id', sup.member_id).single().then(function(rNameTa) {
+                                    result.supportingNameTa = rNameTa.data ? rNameTa.data.name_ta : '';
+                                    // Look up supporting Juz details
+                                    _supabase.from('members').select('juz_ar,juz_en,juz_ta').eq('sequence', parseInt(result.supportingJuz || '0')).single().then(function(rSupJuz) {
+                                        if (rSupJuz.data) {
+                                            result.supportingJuzAr = rSupJuz.data.juz_ar || '';
+                                            result.supportingJuzEn = rSupJuz.data.juz_en || '';
+                                            result.supportingJuzTa = rSupJuz.data.juz_ta || '';
+                                        }
+                                        if (_ok) _ok(result);
+                                    });
+                                });
+                            } else {
+                                if (_ok) _ok(result);
+                            }
+                        });
                     });
                 });
                     return this;
@@ -223,17 +255,17 @@
                         if (rd <= inputDate && (!latestDate || rd > latestDate)) { latestDate = rd; currentIdx = i; }
                     }
                     if (currentIdx === -1) { if (_ok) _ok(null); return; }
-                    // Find todayIndex - use IST time for consistency
-                    var now = new Date();
-                    var IST_MS = 5.5 * 3600000;
-                    var nowIST = new Date(now.getTime() + now.getTimezoneOffset() * 60000 + IST_MS);
-                    var today = new Date(nowIST); today.setHours(0,0,0,0,0);
-                    var todayIdx = -1; var todayDate = null;
-                    for (var i = 0; i < hadData.length; i++) {
-                        var rd = ld(hadData[i].start_date); rd.setHours(0,0,0,0,0);
-                        if (rd <= today && (!todayDate || rd > todayDate)) { todayDate = rd; todayIdx = i; }
-                    }
-                    var getRowData = function(idx) {
+// Find todayIndex - use IST time for consistency
+                     var now = new Date();
+                     var IST_MS = 5.5 * 3600000;
+                     var nowIST = new Date(now.getTime() + now.getTimezoneOffset() * 60000 + IST_MS);
+var today = new Date(nowIST); today.setHours(0,0,0,0,0);
+                      var todayIdx = -1; var todayDate = null;
+                      for (var i = 0; i < hadData.length; i++) {
+                          var rd = ld(hadData[i].start_date); rd.setHours(0,0,0,0,0);
+                          if (rd <= today && (!todayDate || rd > todayDate)) { todayDate = rd; todayIdx = i; }
+                      }
+                     var getRowData = function(idx) {
                         if (idx < 0 || idx >= hadData.length || !hadData[idx].nominated_to) return null;
                         var row = hadData[idx];
                         var startDate = ld(row.start_date);
@@ -249,15 +281,13 @@
                         var rawDedPurposeEn = row.dedicated_purpose_english || '';
                         var rawDedPurposeTa = row.dedicated_purpose_tamil || '';
                         function parseDT(str) {
-                            var s = String(str);
-                            var hasTZ = s.endsWith('Z') || /[\+-]\d{2}:\d{2}$/.test(s.replace(' ', 'T'));
-                            var p = s.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})(?::(\d{2}))?/);
+                            var s = String(str).replace(' ', 'T');
+                            var hasTZ = s.endsWith('Z') || /[\+-]\d{2}:\d{2}$/.test(s) || /[\+-]\d{4}$/.test(s);
+                            // Match both space and T separators
+                            var p = s.match(/^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})(?::(\d{2}))?/);
                             var result;
                             if (p) result = new Date(+p[1],+p[2]-1,+p[3],+p[4],+p[5],+(p[6]||0));
                             else { var d = new Date(s); result = isNaN(d.getTime()) ? ld(s) : d; }
-                            if (!hasTZ && !isNaN(result.getTime())) {
-                                result = new Date(result.getTime() - result.getTimezoneOffset() * 60000);
-                            }
                             return result;
                         }
                         function fmtDL(d) {
@@ -286,21 +316,37 @@
                     // Read nextStart for cutoff
                     var curRow = getRowData(currentIdx);
                     if (!curRow) { if (_ok) _ok(null); return; }
-                    // Use DB nextStartISO for cutoff - compare in IST
-                    if (inputDate.getDay() === 5 && curRow && curRow.nextStartISO) {
+                    // Friday cutoff: if selecting a Friday, check whether this Friday's Hadiya has started
+                    if (inputDate.getDay() === 5) {
                         var now = new Date();
                         var IST_MS = 5.5 * 3600000;
                         var nowIST = new Date(now.getTime() + now.getTimezoneOffset() * 60000 + IST_MS);
-                        var _cutoff = new Date(curRow.nextStartISO);
-                        if (nowIST.getTime() < _cutoff.getTime()) inputDate.setDate(inputDate.getDate() - 1);
-                        // Re-evaluate
-                        currentIdx = -1; latestDate = null;
-                        for (var i = 0; i < hadData.length; i++) {
-                            var rd = new Date(hadData[i].start_date); rd.setHours(0,0,0,0,0);
-                            if (rd <= inputDate && (!latestDate || rd > latestDate)) { latestDate = rd; currentIdx = i; }
+                        // Determine the cutoff row — the row whose nextStartISO is this Friday's start time
+                        var cutoffRow = null;
+                        if (hadData[currentIdx] && ld(hadData[currentIdx].start_date).getTime() === inputDate.getTime()) {
+                            // Found row starts ON this Friday — cutoff is the previous row's nextStartISO
+                            if (currentIdx > 0) cutoffRow = getRowData(currentIdx - 1);
+                        } else {
+                            // Found row starts BEFORE this Friday (no row for this Friday) — cutoff is current row's nextStartISO
+                            cutoffRow = curRow;
                         }
-                        if (currentIdx === -1) { if(_ok) _ok(null); return; }
-                        curRow = getRowData(currentIdx);
+                        var _cutoff = cutoffRow && cutoffRow.nextStartISO ? new Date(cutoffRow.nextStartISO) : null;
+                        if (_cutoff && !isNaN(_cutoff.getTime())) {
+                            if (nowIST.getTime() < _cutoff.getTime()) {
+                                // This Friday's Hadiya hasn't started yet — show previous week
+                                if (hadData[currentIdx] && ld(hadData[currentIdx].start_date).getTime() === inputDate.getTime()) {
+                                    // Move back one row
+                                    if (currentIdx > 0) { currentIdx--; curRow = getRowData(currentIdx); }
+                                }
+                                // If no row for this Friday, stay on current row (it IS the previous week)
+                            } else {
+                                // This Friday's Hadiya has started — advance to its row if needed
+                                if (!(hadData[currentIdx] && ld(hadData[currentIdx].start_date).getTime() === inputDate.getTime())) {
+                                    // Current row is from previous week, advance
+                                    if (currentIdx + 1 < hadData.length) { currentIdx++; curRow = getRowData(currentIdx); }
+                                }
+                            }
+                        }
                         if (!curRow) { if(_ok) _ok(null); return; }
                     }
                     // Auto-advance (only for current-week view)
@@ -314,6 +360,7 @@
                             var nextStartParsed = new Date(curRow.nextStartISO);
                             if (nextStartParsed.getTime() > 0 && (nowIST.getTime() >= nextStartParsed.getTime()) && currentIdx + 1 < hadData.length) {
                                 currentIdx++;
+                                latestDate = new Date(hadData[currentIdx].start_date); latestDate.setHours(0,0,0,0,0);
                                 curRow = getRowData(currentIdx);
                                 if (!curRow) { if (_ok) _ok(null); return; }
                             }
@@ -348,18 +395,18 @@
                                 }
                             });
                         }
-                        var result = {
-                            current: getRowData(currentIdx),
-                            previous: getRowData(currentIdx - 1),
-                            next: getRowData(currentIdx + 1),
-                            currentIndex: currentIdx,
-                            todayIndex: todayIdx,
-                            weekStart: mondayStr,
-                            completedList: completedList,
-                            recitingList: recitingList,
-                            supportersList: supportersList
-                        };
-                        if (_ok) _ok(result);
+var result = {
+                             current: getRowData(currentIdx),
+                             previous: getRowData(currentIdx - 1),
+                             next: getRowData(currentIdx + 1),
+                             currentIndex: currentIdx,
+                             todayIndex: todayIdx,
+                             weekStart: mondayStr,
+                             completedList: completedList,
+                             recitingList: recitingList,
+                             supportersList: supportersList
+                         };
+                         if (_ok) _ok(result);
                     });
                 });
                 return this;
@@ -412,7 +459,7 @@
                         if (!isNaN(d.getTime())) cutoffTime = d;
                     }
                     // No fallback — only use DB value
-                    var isBeforeNextStart = cutoffTime && now.getTime() < cutoffTime.getTime();
+                    var isBeforeNextStart = cutoffTime && istNow.getTime() < cutoffTime.getTime();
                     var correctMonday;
                     if (isBeforeNextStart) {
                         var tmp = new Date(nowStr + 'T00:00:00');
@@ -429,7 +476,7 @@
                     }
                     var monday = fridayOf(adjDate);
                     if (!monday) { if (_ok) _ok({ error: "Invalid date." }); return; }
-                    var editable = monday === correctMonday && isBeforeNextStart;
+                    var editable = monday === correctMonday;
                     // Fetch report data
                     _supabase.from('weekly_status').select('member_id,juz_number,member_name,status,completed_date_time,exception_raised_time,supported_by_name,support_status').eq('week_start', monday).then(function(rStat) {
                         if (!rStat.data || rStat.data.length === 0) {
@@ -461,7 +508,7 @@
                                 var mi = nameMap[s.member_id] || {};
                                 var jd = juzMap[s.juz_number] || {};
                                 var dn = (mi.en||s.member_name||'') + ' | ' + (mi.ta||'');
-                                var dl = (s.status === 'Completed' ? s.completed_date_time : (s.status === 'Exception Raised' ? s.exception_raised_time : '')) || '';
+                                var dl = s.status === 'Completed' ? (s.completed_date_time || '') : (s.status === 'Exception Raised' ? (s.completed_date_time || s.exception_raised_time || '') : '');
                                 return { userId: s.member_id, name: dn, juzNum: String(s.juz_number), juzAr: jd.arabic||'', juzEn: jd.english||'', juzTa: jd.tamil||'', status: s.status||'Not Started', dateLogged: dl, supportedBy: s.supported_by_name||'', supportStatus: s.support_status||'', isEditable: editable };
                             });
                             if (_ok) _ok({ week: monday, data: reportList, isEditable: editable });
@@ -628,9 +675,11 @@
                                             userTamilName: readerTaName,
                                             juz: juzNum,
                                             week: formatDateDDMMMYYYY(monday),
-                                            status: newSupportStatus,
-                                            oldStatus: oldSupStatus,
-                                            actionType: newSupportStatus === 'Completed' ? 'support_completed' : 'status_changed',
+                                            status: existing.status || 'Exception Raised',
+                                            oldStatus: existing.status || 'Exception Raised',
+                                            actionType: (existing.status === 'Exception Raised')
+                                                ? (newSupportStatus === 'Completed' ? 'support_completed' : 'support_assigned')
+                                                : 'status_changed',
                                             supportReader: supEnName,
                                             supportReaderTamil: supTaName,
                                             timestamp: timestamp

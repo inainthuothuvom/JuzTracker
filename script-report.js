@@ -15,7 +15,11 @@ function fetchAndRenderReport(dateVal, onComplete) {
             return;
         }
         currentReportWeek = res.week || '';
-        document.getElementById('reportWeekLabel').innerText = currentReportWeek;
+        var rangeLabel = currentReportWeek;
+        if (currentHadiyaDetails && currentHadiyaDetails.current && currentHadiyaDetails.current.range) {
+            rangeLabel = currentHadiyaDetails.current.range;
+        }
+        document.getElementById('reportWeekLabel').innerText = rangeLabel;
         rawReportData = res.data;
         reportIsEditable = res.isEditable || false;
         document.querySelectorAll('.sort-indicator').forEach(el => { el.textContent = ''; el.classList.remove('active'); });
@@ -93,7 +97,7 @@ function submitReportEditStatus(newStatus) {
             if (entry) {
                 entry.status = newStatus;
                 const customReportTime = getCustomTime('report');
-                const useTs = (newStatus === 'Completed' || newStatus === 'Exception Raised') ? (customReportTime || (function(){const d=new Date();const p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());})()) : '';
+                const useTs = newStatus === 'Completed' ? (customReportTime || formatCurrentTimestamp()) : '';
                 entry.dateLogged = useTs;
                 if (newStatus !== 'Exception Raised') {
                     entry.supportedBy = '';
@@ -102,7 +106,11 @@ function submitReportEditStatus(newStatus) {
             }
             showSnackbar("Status updated: " + newStatus, false);
             closeReportEditModal();
-            fetchHadiyaDetails(weekVal);
+            setTimeout(function() {
+                submitQuery();
+                fetchHadiyaDetails(document.getElementById('dateInput').value);
+                applyReportFilter();
+            }, 300);
         } else {
             showSnackbar("Failed: " + (response.error || 'Error'), true);
         }
@@ -162,8 +170,15 @@ function toggleBulkMode() {
     applyReportFilter();
 }
 function toggleBulkSelect(uid, checked) {
-    if (checked) selectedUserIds.add(uid);
-    else selectedUserIds.delete(uid);
+    if (checked === undefined) {
+        if (selectedUserIds.has(uid)) selectedUserIds.delete(uid);
+        else selectedUserIds.add(uid);
+        var cb = document.querySelector('.bulk-checkbox[data-uid="' + uid + '"]');
+        if (cb) cb.checked = selectedUserIds.has(uid);
+    } else {
+        if (checked) selectedUserIds.add(uid);
+        else selectedUserIds.delete(uid);
+    }
     updateBulkApplyBtn();
 }
 function toggleSelectAll() {
@@ -261,8 +276,13 @@ function executeBulkUpdate() {
             closeBulkConfirm();
             showSnackbar('Bulk update: ' + completed + ' updated, ' + failed + ' failed', failed > 0);
             if (completed > 0) {
+                if (bulkMode) toggleBulkMode();
                 selectedUserIds.clear();
-                fetchAndRenderReport(originalDate);
+                setTimeout(function() {
+                    submitQuery();
+                    fetchHadiyaDetails(originalDate);
+                    fetchAndRenderReport(originalDate);
+                }, 300);
             }
             return;
         }
@@ -297,7 +317,8 @@ function renderReportRows(items) {
         else if (resolvedStatus === "Exception Raised") badgeClass = "badge-exception";
 
         let dateLoggedInfo = '';
-        if (row.dateLogged) {
+        let showDateLogged = row.dateLogged;
+        if (showDateLogged) {
             var dtParts = formatDisplayDateParts(row.dateLogged);
             if (dtParts) {
                 dateLoggedInfo = '<span class="date-logged"><span class="date-line">' + dtParts.day + ', ' + dtParts.date + '</span><span class="time-line">' + dtParts.time + '</span></span>';
@@ -311,7 +332,7 @@ function renderReportRows(items) {
                 let supStatusText = row.supportStatus === "Completed" ? "Completed ✅" : "Reciting 🔄";
                 dateLoggedInfo += `<span class="date-logged" style="color: #58a6ff; font-weight:600;">🤝 Support: ${row.supportedBy} (${supStatusText})</span>`;
             } else {
-                dateLoggedInfo += `<span class="date-logged" style="color: #f87171; font-weight:600;">⚠️ Exception Unassigned</span>`;
+                dateLoggedInfo += `<span class="date-logged" style="color: #f87171; font-weight:600;">⚠️ <a href="#" onclick="openReassignFromReport('${row.userId}', ${row.juzNum}, '${row.name.replace(/'/g, "\\'")}'); return false;" style="color:#f87171;">Exception Unassigned</a></span>`;
             }
         }
 
@@ -330,7 +351,7 @@ function renderReportRows(items) {
                 const encDate = (row.dateLogged || '').replace(/'/g, "\\'");
                 editLink = `<br><a href="#" onclick="openReportEditModal('${row.userId}','${encName}','${rawStatus}','${encDate}'); return false;" style="font-size:0.7rem; color:#58a6ff; font-weight:600;">Edit / மாற்ற</a>`;
             }
-            if (rawStatus === "Completed") {
+            if (rawStatus === "Completed" || (rawStatus === "Exception Raised" && row.dateLogged)) {
                 const encName = row.name.replace(/'/g, "\\'");
                 const encDate = (row.dateLogged || '').replace(/'/g, "\\'");
                 timeEditIcon = `<span class="report-time-edit" style="cursor:pointer;" onclick="openReportEditModal('${row.userId}','${encName}','Completed','${encDate}')" title="Update completion time"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e6edf3" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>`;
@@ -338,9 +359,9 @@ function renderReportRows(items) {
         }
 
         const isChecked = selectedUserIds.has(row.userId);
-        const cbHtml = bulkMode ? `<td class="bulk-checkbox-cell"><input type="checkbox" class="bulk-checkbox" data-uid="${row.userId}" ${isChecked ? 'checked' : ''} onchange="toggleBulkSelect('${row.userId}', this.checked)"></td>` : '';
+        const cbHtml = bulkMode ? `<td class="bulk-checkbox-cell"><input type="checkbox" class="bulk-checkbox" data-uid="${row.userId}" ${isChecked ? 'checked' : ''} onclick="event.stopPropagation()" onchange="toggleBulkSelect('${row.userId}', this.checked)"></td>` : '';
 
-        html += `<tr>
+        html += `<tr onclick="toggleBulkSelect('${row.userId}')">
             ${cbHtml}
             <td class="report-name-col">
                 <div class="name-cell">
@@ -591,58 +612,176 @@ function copyHadiyaNoteToClipboard() {
     var captureDiv = document.getElementById('hadiyaCaptureArea');
 
     var dedHtml = '';
-    if (cur.dedicatedTo && cur.dedicatedTo !== cur.en) {
-        dedHtml = '<div style="font-size:0.85rem; color:#d29922; font-weight:600; margin-bottom:8px;">🎯 Dedicated to / அர்ப்பணித்தல்: ' +
-            (cur.dedicatedToTa || cur.dedicatedTo) + '</div>';
+    var dedEn = cur.dedicatedToEn || cur.dedicatedTo || '';
+    var dedTa = cur.dedicatedToTa || '';
+    var purpEn = cur.dedicatedPurposeEn || '';
+    var purpTa = cur.dedicatedPurposeTa || '';
+    if (dedEn && dedEn.length > 0) {
+        var dNames = dedEn.split(';').map(function(s) { return s.trim(); }).filter(function(s) { return s; });
+        var dNamesTa = dedTa ? dedTa.split(';').map(function(s) { return s.trim(); }).filter(function(s) { return s; }) : [];
+        var dPurp = purpEn ? purpEn.split(';').map(function(s) { return s.trim(); }).filter(function(s) { return s; }) : [];
+        var dPurpTa = purpTa ? purpTa.split(';').map(function(s) { return s.trim(); }).filter(function(s) { return s; }) : [];
+        if (dNames.length > 0) {
+            var dedList = '';
+            for (var di = 0; di < dNames.length; di++) {
+                var num = di + 1;
+                var enLine = '(' + num + ') ' + dNames[di] + (dPurp[di] ? ' - ' + dPurp[di] : '');
+                var taLine = (dNamesTa[di] || dNames[di]) + (dPurpTa[di] ? ' - ' + dPurpTa[di] : (dPurp[di] ? ' - ' + dPurp[di] : ''));
+                dedList += '<div style="font-size:0.85rem; color:#e6edf3; margin-bottom:2px;">' + escapeHtml(enLine) + '</div>' +
+                    '<div style="font-size:0.8rem; color:#8b949e; margin-bottom:8px;">' + escapeHtml(taLine) + '</div>';
+            }
+            dedHtml = '<div style="font-size:0.85rem; color:#d29922; font-weight:600; margin-bottom:6px;">🎯 Dedicated to / அர்ப்பணித்தல்:</div>' +
+                dedList;
+        }
     }
 
     var tHadiyaSub = 'ஹதியா நிறைவேற்றப்பட்டது';
     var tWeek = 'வாரம்';
-    var tAlhamdulillah = 'அல்ஹம்துலில்லாஹ், இந்த வாரத்திற்கான<br>அனைத்து ஜுஸ் ஓதுதல்களும்<br>திட்டமிட்டபடி சரியான நேரத்தில்<br>வெற்றிகரமாக நிறைவு பெற்றுள்ளன!';
+    var tAlhamdulillah = 'அல்ஹம்துலில்லாஹ், இந்த வாரத்திற்கான அனைத்து ஜுஸ் ஓதுதல்களும் திட்டமிட்டபடி சரியான நேரத்தில் வெற்றிகரமாக நிறைவு பெற்றுள்ளன!';
     var tJazak = 'ஜஜாக்குமுல்லாஹு கைரான், உங்களின் விரைவான அர்ப்பணிப்பிற்கு நன்றி!';
-    var tDedicated = 'இந்த வார முழுமையான கத்தம் ஹதியா<br>கீழே உள்ள உறுப்பினரால் நிறைவேற்றப்பட்டு அர்ப்பணிக்கப்படுகிறது:';
-    var tDua = 'யா அல்லாஹ், எங்களின் ஒருங்கிணைந்த முயற்சிகளை ஏற்றுக்கொண்டு,<br>ஈடுபட்ட அனைவருக்கும் மகத்தான பரக்கத்தை வழங்கி,<br>அனைத்து ஓதுனர்களுக்கும் இம்மையிலும் மறுமையிலும்<br>உயர்ந்த அந்தஸ்தை வழங்குவாயாக்!';
+    var tDedicated = 'இந்த வார முழுமையான கத்தம் ஹதியா கீழே உள்ள உறுப்பினரால் நிறைவேற்றப்பட்டு அர்ப்பணிக்கப்படுகிறது:';
+    var tDua = 'யா அல்லாஹ், எங்களின் ஒருங்கிணைந்த முயற்சிகளை ஏற்றுக்கொண்டு, ஈடுபட்ட அனைவருக்கும் மகத்தான பரக்கத்தை வழங்கி, அனைத்து ஓதுனர்களுக்கும் இம்மையிலும் மறுமையிலும் உயர்ந்த அந்தஸ்தை வழங்குவாயாக்!';
 
     captureDiv.innerHTML =
-        '<div style="width:480px; background:linear-gradient(180deg, #161b22 0%, #0d1117 100%); padding:24px; box-sizing:border-box; font-family:Poppins, Arial, sans-serif;">' +
-        '<div style="height:4px; background:#2dd4bf; margin:-24px -24px 20px -24px;"></div>' +
-        '<div style="font-size:1.2rem; font-weight:700; color:#5eead4; text-align:center; margin-bottom:2px;">' +
+        '<div style="width:480px; background:#0d1117; padding:28px 32px; box-sizing:border-box; font-family:Poppins, Arial, sans-serif;">' +
+        '<div style="height:3px; background:linear-gradient(90deg, #2dd4bf, #5eead4); margin:-28px -32px 20px -32px;"></div>' +
+        '<div style="font-size:1.1rem; font-weight:700; color:#5eead4; margin-bottom:1px;">' +
         'Hadiya Completed</div>' +
-        '<div style="font-size:0.9rem; font-weight:600; color:#5eead4; text-align:center; margin-bottom:8px;">' +
+        '<div style="font-size:0.85rem; color:#5eead4; margin-bottom:10px;">' +
         tHadiyaSub + '</div>' +
-        '<div style="text-align:center; font-size:0.7rem; color:#30363d; margin-bottom:8px;">' +
-        '——————————————————</div>' +
-        '<div style="text-align:center; font-size:0.95rem; font-weight:700; color:#e6edf3; margin-bottom:16px;">' +
-        'Week / ' + tWeek + ': ' + cur.range + '</div>' +
-        '<div style="text-align:center; font-size:0.85rem; color:#c9d1d9; line-height:1.6; margin-bottom:4px;">' +
+        '<div style="border:none; border-top:1px solid #21262d; margin-bottom:12px;"></div>' +
+        '<div style="font-size:0.85rem; color:#8b949e; margin-bottom:14px;">' +
+        'Week / ' + tWeek + ': <span style="color:#e6edf3;font-weight:600;">' + cur.range + '</span></div>' +
+        '<div style="border:none; border-top:1px solid #21262d; margin-bottom:14px;"></div>' +
+        '<div style="font-size:0.85rem; color:#c9d1d9; line-height:1.7; text-align:start; margin-bottom:6px;">' +
         tAlhamdulillah + '</div>' +
-        '<div style="text-align:center; font-size:0.85rem; color:#c9d1d9; line-height:1.6; margin-bottom:4px;">' +
+        '<div style="font-size:0.85rem; color:#c9d1d9; line-height:1.7; text-align:start; margin-bottom:6px;">' +
         tJazak + '</div>' +
-        '<div style="text-align:center; font-size:0.85rem; color:#c9d1d9; line-height:1.6; margin-bottom:16px;">' +
+        '<div style="font-size:0.85rem; color:#c9d1d9; line-height:1.7; margin-bottom:16px;">' +
         tDedicated + '</div>' +
-        '<div style="text-align:center; font-size:1.2rem; font-weight:700; color:#5eead4; margin-bottom:2px;">' +
-        (cur.ta || cur.en) + '</div>' +
-        '<div style="text-align:center; font-size:1rem; font-weight:600; color:#c9d1d9; margin-bottom:12px;">' +
-        cur.en + '</div>' +
+        '<div style="font-size:1rem; font-weight:600; color:#5eead4; margin-bottom:1px;">' +
+        escapeHtml(cur.ta || cur.en) + '</div>' +
+        '<div style="font-size:0.9rem; color:#c9d1d9; margin-bottom:14px;">' +
+        escapeHtml(cur.en) + '</div>' +
         dedHtml +
-        '<div style="text-align:center; font-size:0.85rem; color:#c9d1d9; line-height:1.6; margin-bottom:4px;">' +
-        'Alhamdulillah, all assigned Juz recitations<br>for this week have been completed<br>successfully on time!</div>' +
-        '<div style="text-align:center; font-size:0.85rem; color:#c9d1d9; line-height:1.6; margin-bottom:4px;">' +
+        '<div style="border:none; border-top:1px solid #21262d; margin-top:12px; margin-bottom:14px;"></div>' +
+        '<div style="font-size:0.85rem; color:#c9d1d9; line-height:1.7; margin-bottom:4px;">' +
+        'Alhamdulillah, all assigned Juz recitations for this week have been completed successfully on time!</div>' +
+        '<div style="font-size:0.85rem; color:#c9d1d9; line-height:1.7; text-align:start; margin-bottom:4px;">' +
         'Jazakumullahu Khairan for your swift dedication!</div>' +
-        '<div style="text-align:center; font-size:0.85rem; color:#c9d1d9; line-height:1.6; margin-bottom:16px;">' +
-        'The Khatam Hadiya is dedicated to and<br>completed by the above member.</div>' +
-        '<div style="text-align:center; font-size:0.7rem; color:#30363d; margin-bottom:12px;">' +
-        '——————————————————</div>' +
-        '<div style="text-align:center; font-size:0.8rem; color:#8b949e; line-height:1.6; margin-bottom:12px;">' +
+        '<div style="font-size:0.85rem; color:#c9d1d9; line-height:1.7; text-align:start; margin-bottom:16px;">' +
+        'The Khatam Hadiya is dedicated to and completed by the above member.</div>' +
+        '<div style="border:none; border-top:1px solid #21262d; margin-bottom:14px;"></div>' +
+        '<div style="font-size:0.8rem; color:#8b949e; line-height:1.7; text-align:start; margin-bottom:10px;">' +
         tDua + '</div>' +
-        '<div style="text-align:center; font-size:0.75rem; color:#8b949e; line-height:1.5; margin-bottom:16px;">' +
-        'May Allah accept our combined efforts,<br>grant immense barakah to everyone involved,<br>and reward all readers with the highest<br>ranks in Dunya and Akhirah.</div>' +
-        '<div style="text-align:center; font-size:0.7rem; color:#30363d;">— Inainthu Othuvom —</div>' +
+        '<div style="font-size:0.75rem; color:#8b949e; line-height:1.6; text-align:start; margin-bottom:14px;">' +
+        'May Allah accept our combined efforts, grant immense barakah to everyone involved, and reward all readers with the highest ranks in Dunya and Akhirah.</div>' +
+        '<div style="text-align:center; font-size:0.65rem; color:#30363d; border-top:1px solid #21262d; padding-top:12px;">— Inainthu Othuvom —</div>' +
         '</div>';
 
+    // Create preview overlay with buttons
+    var overlay = document.createElement('div');
+    overlay.id = 'hadiyaPreviewOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;flex-direction:column;';
+    // Move captureDiv into overlay
+    captureDiv.parentNode.insertBefore(overlay, captureDiv);
+    overlay.appendChild(captureDiv);
+
     captureDiv.style.display = 'block';
-    captureElementToClipboard(captureDiv, hadiyaBtn, "Hadiya Note 📋", "Hadiya note copied as image!");
-    setTimeout(function() { captureDiv.style.display = 'none'; captureDiv.innerHTML = ''; }, 1000);
+    captureDiv.style.position = 'static';
+    captureDiv.style.width = '480px';
+    captureDiv.style.maxHeight = '80vh';
+    captureDiv.style.overflowY = 'auto';
+    captureDiv.style.borderRadius = '12px';
+    captureDiv.style.boxShadow = 'none';
+
+    var closePreview = function() {
+        overlay.parentNode.insertBefore(captureDiv, overlay);
+        overlay.remove();
+        captureDiv.style.display = 'none';
+        captureDiv.innerHTML = '';
+        captureDiv.style.position = '';
+        captureDiv.style.width = '';
+        captureDiv.style.maxHeight = '';
+        captureDiv.style.overflowY = '';
+        captureDiv.style.borderRadius = '';
+        captureDiv.style.boxShadow = '';
+    };
+
+    var closeX = document.createElement('span');
+    closeX.innerHTML = '&times;';
+    closeX.style.cssText = 'position:fixed;top:12px;right:18px;font-size:1.8rem;color:#8b949e;cursor:pointer;z-index:9999;line-height:1;';
+    closeX.onclick = closePreview;
+    overlay.appendChild(closeX);
+
+    var btnWrap = document.createElement('div');
+    btnWrap.style.cssText = 'margin-top:10px;display:flex;gap:8px;';
+    btnWrap.innerHTML =
+        '<button id="hadiyaCopyBtn" style="background:#238636;color:#fff;border:none;border-radius:6px;padding:6px 16px;font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;">Copy 📋</button>';
+    overlay.appendChild(btnWrap);
+
+    overlay.onclick = function(e) {
+        if (e.target === overlay) closePreview();
+    };
+
+    document.getElementById('hadiyaCopyBtn').onclick = function() {
+        var btn = this;
+        btn.disabled = true;
+        btn.innerText = "Rendering...";
+        // Expand to full height for capture, then restore
+        var origMaxH = captureDiv.style.maxHeight;
+        var origOverflow = captureDiv.style.overflowY;
+        captureDiv.style.maxHeight = 'none';
+        captureDiv.style.overflowY = 'visible';
+        html2canvas(captureDiv, {
+            scale: 4,
+            useCORS: true,
+            backgroundColor: '#ffffff',
+            logging: false
+        }).then(function(canvas) {
+            captureDiv.style.maxHeight = origMaxH;
+            captureDiv.style.overflowY = origOverflow;
+            canvas.toBlob(function(blob) {
+                navigator.clipboard.write([new ClipboardItem({'image/png': blob})]).then(function() {
+                    btn.innerText = "Copied! ✓";
+                    btn.style.background = "#1b5e20";
+                    setTimeout(function() {
+                        btn.disabled = false;
+                        btn.innerText = "Copy 📋";
+                        btn.style.background = "#238636";
+                    }, 2000);
+                    showSnackbar("Hadiya note copied!", false);
+                }).catch(function() {
+                    // Fallback: copy as text
+                    var text = captureDiv.innerText || captureDiv.textContent || '';
+                    navigator.clipboard.writeText(text).then(function() {
+                        captureDiv.style.maxHeight = origMaxH;
+                        captureDiv.style.overflowY = origOverflow;
+                        btn.innerText = "Copied! ✓";
+                        btn.style.background = "#1b5e20";
+                        setTimeout(function() {
+                            btn.disabled = false;
+                            btn.innerText = "Copy 📋";
+                            btn.style.background = "#238636";
+                        }, 2000);
+                        showSnackbar("Hadiya note copied as text!", false);
+                    }).catch(function() {
+                        captureDiv.style.maxHeight = origMaxH;
+                        captureDiv.style.overflowY = origOverflow;
+                        btn.disabled = false;
+                        btn.innerText = "Copy 📋";
+                        showSnackbar("Failed to copy.", true);
+                    });
+                });
+            }, 'image/png');
+        }).catch(function() {
+            captureDiv.style.maxHeight = origMaxH;
+            captureDiv.style.overflowY = origOverflow;
+            btn.disabled = false;
+            btn.innerText = "Copy 📋";
+            showSnackbar("Rendering failed.", true);
+        });
+    };
 }
 
 function closeReportModal() {

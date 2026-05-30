@@ -1,12 +1,26 @@
 let currentActiveUserId = null;
 let currentActiveRawDate = null;
 let currentActiveJuzNumber = null;
+let currentSupportingUserId = null;
 let rawReportData = [];
 let currentHadiyaDetails = null; // Store Hadiya details locally for copying
 let bulkMode = false;
 let selectedUserIds = new Set();
 let bulkAvailableData = [];
 let searchVisible = false;
+
+function resetMainStatusBtns() {
+    ['completedActionBtn','recitingActionBtn','exceptionActionBtn'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.style.display = '';
+    });
+}
+function resetSupportStatusBtns() {
+    ['supportCompletedBtn','supportRecitingBtn'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.style.display = '';
+    });
+}
 let bulkSelectedStatus = '';
 let sortColumn = 'name';
 let sortAsc = true;
@@ -79,11 +93,25 @@ function isPastNextHadiyaStart() {
     if (hadiya.currentIndex !== hadiya.todayIndex) {
         return false;
     }
-    const nextStart = new Date(hadiya.current.nextStartISO);
     var now = new Date();
     var IST_OFFSET = 5.5 * 3600000;
+    
+    // Parse nextStartISO - handle both timezone-aware and local times
+    var nextStart = new Date(hadiya.current.nextStartISO);
+    var s = String(hadiya.current.nextStartISO).trim().replace(' ', 'T');
+    var hasTimezone = s.endsWith('Z') || /[\+\-]\d{2}:\d{2}$/.test(s) || /[\+\-]\d{4}$/.test(s);
+    
+    // If no timezone, treat as IST (local time)
+    if (!hasTimezone && !isNaN(nextStart.getTime())) {
+        var p = s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/);
+        if (p) {
+            // Build as IST local time
+            nextStart = new Date(+p[1], +p[2]-1, +p[3], +p[4], +p[5], +(p[6]||0));
+        }
+    }
+    
     var nowIST = new Date(now.getTime() + now.getTimezoneOffset() * 60000 + IST_OFFSET);
-    return nextStart.getTime() > 0 && nowIST.getTime() >= nextStart.getTime();
+    return nowIST.getTime() >= nextStart.getTime();
 }
 
 function configureStatusEditLock(statusVal, resData) {
@@ -142,7 +170,9 @@ function configureStatusEditLock(statusVal, resData) {
 
     if (statusVal === "Reciting") {
         unlockLink.style.display = "none";
+        resetMainStatusBtns();
         buttonsGroup.style.display = "flex"; 
+        document.getElementById('recitingActionBtn').style.display = 'none';
         textDisplay.innerText = "Reciting \n ஓதிக்கொண்டிருக்கிறேன் 🔄";
         textDisplay.style.display = "block";
         mainSupportWidget.style.display = "none";
@@ -170,10 +200,13 @@ function configureStatusEditLock(statusVal, resData) {
                 if (supStatus === "Reciting") {
                     unlockSupportLink.style.display = "none";
                     closeSupportEditLink.style.display = "none";
+                    resetSupportStatusBtns();
                     supportBtnsGroup.style.display = "flex"; 
+                    document.getElementById('supportRecitingBtn').style.display = 'none';
                     if (supportTimeToggle) { supportTimeToggle.style.display = 'inline-flex'; }
                 } else {
                     unlockSupportLink.style.display = "inline-block";
+                    resetSupportStatusBtns();
                     supportBtnsGroup.style.display = "none";
                     if (supportTimeToggle) { supportTimeToggle.style.display = 'none'; supportTimeRow.style.display = 'none'; supportTimeToggle.classList.remove('active'); }
                 }
@@ -211,7 +244,14 @@ function enableStatusEditing() {
     }
     document.getElementById('unlockBtn').style.display = "none";
     document.getElementById('closeEditBtn').style.display = "inline-block";
+    resetMainStatusBtns();
     document.getElementById('statusButtonsGroup').style.display = "flex";
+    if (fetchedStateCache && fetchedStateCache.savedStatus) {
+        var cur = fetchedStateCache.savedStatus === 'Not Started' ? 'Reciting' : fetchedStateCache.savedStatus;
+        var idMap = {'Reciting':'recitingActionBtn','Completed':'completedActionBtn','Exception Raised':'exceptionActionBtn'};
+        var btn = document.getElementById(idMap[cur]);
+        if (btn) btn.style.display = 'none';
+    }
     document.getElementById('statusTextDisplay').style.display = "none";
     document.getElementById('mainSupportWidget').style.display = "none";
     const mt = document.getElementById('mainTimeToggle');
@@ -237,7 +277,14 @@ function enableSupportStatusEditing() {
         showSnackbar("Next Hadiya has started. Support status updates are locked.", true);
         return;
     }
+    resetSupportStatusBtns();
     document.getElementById('supportButtonsGroup').style.display = "flex";
+    if (fetchedStateCache) {
+        var supCur = fetchedStateCache.supportStatus || fetchedStateCache.supportAssignmentStatus || 'Reciting';
+        var supIdMap = {'Reciting':'supportRecitingBtn','Completed':'supportCompletedBtn'};
+        var supBtn = document.getElementById(supIdMap[supCur]);
+        if (supBtn) supBtn.style.display = 'none';
+    }
     document.getElementById('unlockSupportBtn').style.display = "none";
     document.getElementById('closeSupportEditBtn').style.display = "inline-block";
     const st = document.getElementById('supportTimeToggle');
@@ -375,7 +422,30 @@ function submitQuery() {
             }
 
             setCustomTime('main', res.statusTimestamp || '');
+            
+            // Show support assignment if user is a backup reader
+            currentSupportingUserId = res.supportingUserId || null;
+            var supWidget = document.getElementById('supportAssignmentWidget');
+            var supDetails = document.getElementById('supportAssignmentDetails');
+            var supStatusIcon = document.getElementById('supportAssignmentStatusIcon');
+            if (res.supportingName && supWidget) {
+                var supName = res.supportingName || '';
+                var supNameTa = res.supportingNameTa || '';
+                supDetails.innerHTML = '<b>' + supName + '</b>' + (supNameTa ? '<br><span style="font-size:0.75rem;color:#8b949e;">' + supNameTa + '</span>' : '');
+                if (supStatusIcon) {
+                    var icon = res.supportAssignmentStatus === 'Completed' ? '✅' : '🔄';
+                    supStatusIcon.innerHTML = '<span style="color:#8b949e;">|</span> ' + icon;
+                }
+                supWidget.style.display = 'block';
+            } else if (supWidget) {
+                supWidget.style.display = 'none';
+            }
         }
+        resDiv.style.display = "block";
+    }).withFailureHandler(function(err) {
+        btn.disabled = false;
+        loader.style.display = "none";
+        resDiv.innerHTML = '<div class="error">Error: ' + (err.message || 'Unknown error') + '</div>';
         resDiv.style.display = "block";
     }).findJuzAssignment(id, date);
 }
@@ -415,9 +485,17 @@ function submitDirectStatus(statusVal) {
         excBtn.disabled = false;
         
         if (response.success) {
-            submitQuery();
-            fetchHadiyaDetails(dateInputVal);
-
+            if (fetchedStateCache) {
+                fetchedStateCache.savedStatus = statusVal;
+                if (statusVal !== 'Exception Raised') {
+                    fetchedStateCache.supportedByName = '';
+                    fetchedStateCache.supportStatus = '';
+                }
+            }
+            closeTimePickers();
+            if (fetchedStateCache) {
+                configureStatusEditLock(fetchedStateCache.savedStatus, fetchedStateCache);
+            }
             if (response.noChange) {
                 showSnackbar("No changes detected. Tracker was not modified.", false);
                 if (statusVal === "Exception Raised") {
@@ -452,12 +530,74 @@ function submitSupportStatusDirect(newSupStatus) {
         recBtn.disabled = false;
         if (response.success) {
             showSnackbar("Support Reciting status updated to " + newSupStatus, false);
-            submitQuery(); 
-            fetchHadiyaDetails(dateInputVal);
+            setTimeout(function() {
+                submitQuery(); 
+                fetchHadiyaDetails(dateInputVal);
+                if (typeof fetchAndRenderReport === 'function') fetchAndRenderReport(dateInputVal);
+            }, 300);
         } else {
             showSnackbar("Failed to update support status: " + response.error, true);
         }
     }).updateSupportStatus(currentActiveUserId, weekVal, newSupStatus, customTime);
+}
+
+function submitSupportFromAssignment(newSupStatus) {
+    if (!currentSupportingUserId) { showSnackbar("No support assignment found.", true); return; }
+    if (isPastNextHadiyaStart()) {
+        showSnackbar("Next Hadiya has started. Support status updates are locked.", true);
+        return;
+    }
+    const dateInputVal = document.getElementById('dateInput').value;
+    const weekVal = (currentHadiyaDetails && currentHadiyaDetails.weekStart) || dateInputVal;
+    var btns = document.querySelectorAll('#supportAssignmentModal .modal-content button');
+    btns.forEach(function(b) { b.disabled = true; });
+    const customTime = getCustomTime('support');
+    google.script.run.withSuccessHandler(function(response) {
+        btns.forEach(function(b) { b.disabled = false; });
+        if (response.success) {
+            showSnackbar("Support status updated to " + newSupStatus, false);
+            closeSupportAssignmentModal();
+            if (fetchedStateCache) {
+                fetchedStateCache.supportAssignmentStatus = newSupStatus;
+                var supDetails = document.getElementById('supportAssignmentDetails');
+                var supStatusIcon = document.getElementById('supportAssignmentStatusIcon');
+                if (supDetails) {
+                    var supName = fetchedStateCache.supportingName || '';
+                    var supNameTa = fetchedStateCache.supportingNameTa || '';
+                    supDetails.innerHTML = '<b>' + supName + '</b>' + (supNameTa ? '<br><span style="font-size:0.75rem;color:#8b949e;">' + supNameTa + '</span>' : '');
+                }
+                if (supStatusIcon) {
+                    var icon = newSupStatus === 'Completed' ? '✅' : '🔄';
+                    supStatusIcon.innerHTML = '<span style="color:#8b949e;">|</span> ' + icon;
+                }
+            }
+        } else {
+            showSnackbar("Failed: " + (response.error || 'Error'), true);
+        }
+    }).updateSupportStatus(currentSupportingUserId, weekVal, newSupStatus, customTime);
+}
+
+function openSupportAssignmentModal() {
+    var info = document.getElementById('supportAssignmentModalInfo');
+    var juzDetails = document.getElementById('supportAssignmentJuzDetails');
+    var details = document.getElementById('supportAssignmentDetails');
+    if (details) {
+        info.innerHTML = '<div style="font-weight:600;font-size:1rem;color:#e6edf3;">' + details.innerHTML + '</div>';
+    }
+    if (fetchedStateCache) {
+        var statusTxt = fetchedStateCache.supportAssignmentStatus === 'Completed' ? '✅ Completed / நிறைவேற்றப்பட்டது' : '🔄 Reciting / ஓதிக்கொண்டிருக்கிறேன்';
+        info.innerHTML += '<div style="color:#8b949e;font-size:0.8rem;margin-top:6px;padding-top:6px;border-top:1px solid #30363d;">' + statusTxt + '</div>';
+        juzDetails.innerHTML =
+            '<div><span class="num-badge" style="background:#1c2d35;color:#5eead4;font-weight:600;font-size:0.8rem;padding:3px 8px;border-radius:4px;display:inline-block;">Juz ' + fetchedStateCache.supportingJuz + '</span></div>' +
+            '<div style="font-size:1.05rem;font-weight:600;color:#a5b4fc;margin:4px 0 2px;">' + (fetchedStateCache.supportingJuzAr || '') + '</div>' +
+            '<div style="font-size:0.85rem;color:#5eead4;">' + (fetchedStateCache.supportingJuzEn || '') + '</div>' +
+            '<div style="font-size:0.85rem;color:#c9d1d9;">' + (fetchedStateCache.supportingJuzTa || '') + '</div>';
+    }
+    document.getElementById('supportAssignmentModal').style.display = 'flex';
+}
+
+function closeSupportAssignmentModal() {
+    document.getElementById('supportAssignmentModal').style.display = 'none';
 }
 
 function openReassignModal() {
@@ -514,11 +654,15 @@ function submitReassignment() {
         reassignBtn.disabled = false;
         reassignBtn.innerText = "Assign Reciting Partner";
         
-        if (response.success) {
-            showSnackbar("Successfully reassigned Reciting support to " + response.assignedName, false);
-            closeReassignModal();
-            submitQuery(); 
-        } else {
+            if (response.success) {
+                showSnackbar("Successfully reassigned Reciting support to " + response.assignedName, false);
+                closeReassignModal();
+                setTimeout(function() {
+                    submitQuery();
+                    fetchHadiyaDetails(weekVal);
+                    if (typeof fetchAndRenderReport === 'function') fetchAndRenderReport(weekVal);
+                }, 300);
+            } else {
             showSnackbar("Failed to reassign support: " + response.error, true);
         }
     }).reassignJuz(currentActiveUserId, weekVal, supportId);
@@ -526,5 +670,18 @@ function submitReassignment() {
 
 function closeReassignModal() {
     document.getElementById('reassignModal').style.display = "none";
-    submitQuery(); 
+    submitQuery();
+}
+
+function closeResult() {
+    document.getElementById('loader').style.display = 'none';
+    resetAssignmentDetails();
+}
+
+function openReassignFromReport(userId, juzNum, rawName) {
+    var enName = rawName.split('|')[0].trim();
+    document.getElementById('userSearch').value = enName;
+    currentActiveUserId = userId;
+    currentActiveJuzNumber = juzNum;
+    openReassignModal();
 }
