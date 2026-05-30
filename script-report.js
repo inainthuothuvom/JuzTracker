@@ -340,22 +340,12 @@ function renderReportRows(items) {
         let enName = nameParts[0];
         let taName = nameParts[1] ? `<span>${nameParts[1]}</span>` : '';
 
-        let editLink = '';
-        let timeEditIcon = '';
-        if (reportIsEditable && row.userId) {
+        let statusBadgeHtml = `<span class="badge ${badgeClass}">${resolvedStatus}</span>`;
+        if (reportIsEditable && row.userId && !bulkMode) {
             const rawStatus = row.status || "Not Started";
-            const needsEdit = rawStatus === "Reciting" || rawStatus === "Not Started" ||
-                (rawStatus === "Exception Raised" && (!row.supportedBy || row.supportStatus !== "Completed"));
-            if (needsEdit) {
-                const encName = row.name.replace(/'/g, "\\'");
-                const encDate = (row.dateLogged || '').replace(/'/g, "\\'");
-                editLink = `<br><a href="#" onclick="openReportEditModal('${row.userId}','${encName}','${rawStatus}','${encDate}'); return false;" style="font-size:0.7rem; color:#58a6ff; font-weight:600;">Edit / மாற்ற</a>`;
-            }
-            if (rawStatus === "Completed" || (rawStatus === "Exception Raised" && row.dateLogged)) {
-                const encName = row.name.replace(/'/g, "\\'");
-                const encDate = (row.dateLogged || '').replace(/'/g, "\\'");
-                timeEditIcon = `<span class="report-time-edit" style="cursor:pointer;" onclick="openReportEditModal('${row.userId}','${encName}','Completed','${encDate}')" title="Update completion time"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#e6edf3" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>`;
-            }
+            const encName = row.name.replace(/'/g, "\\'");
+            const encDate = (row.dateLogged || '').replace(/'/g, "\\'");
+            statusBadgeHtml = `<a href="#" onclick="event.stopPropagation(); openReportEditModal('${row.userId}','${encName}','${rawStatus}','${encDate}'); return false;" class="badge ${badgeClass}">${resolvedStatus}</a>`;
         }
 
         const isChecked = selectedUserIds.has(row.userId);
@@ -380,12 +370,10 @@ function renderReportRows(items) {
             <td class="report-status-col">
                 <div class="status-row">
                     <div class="status-with-time">
-                        <span class="badge ${badgeClass}">${resolvedStatus}</span>
+                        ${statusBadgeHtml}
                         ${dateLoggedInfo}
                     </div>
-                    ${timeEditIcon}
                 </div>
-                ${editLink}
             </td>
         </tr>`;
     });
