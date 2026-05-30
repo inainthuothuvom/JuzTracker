@@ -461,6 +461,7 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
+            margin-left: 10px;
             opacity: 0.62;
         }
 
@@ -661,7 +662,7 @@
             .bulk-checkbox { width: 12px; height: 12px; }
             .report-time-edit {
                 position: absolute;
-                right: 4px;
+                right: 1px;
                 top: 50%;
                 transform: translateY(-50%);
                 display: inline-flex;
