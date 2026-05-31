@@ -169,7 +169,7 @@ function displayHadiya(res) {
     }
 
     var headerHtml = `<div class="hadiya-header">
-        <div style="font-size:0.75rem; color:#7ee787; font-weight:bold;">
+        <div style="font-size:0.75rem; color:#79c0ff; font-weight:bold;">
             <a href="#" class="hadiya-nav-arrow" onclick="event.preventDefault(); navigateHadiya(-1);">&lt;</a>
             ${cur.range}
             <a href="#" class="hadiya-nav-arrow" onclick="event.preventDefault(); navigateHadiya(1);">&gt;</a>
@@ -377,7 +377,7 @@ function loadExistingDedications() {
 function renderDedicationEntries() {
     var container = document.getElementById('dedicationListContainer');
     var html = '';
-    var tBtnStyle = 'background:none;border:1px solid #30363d;border-radius:4px;color:#5eead4;font-size:0.7rem;padding:4px 8px;margin-bottom:6px;margin-top:2px;cursor:pointer;';
+    var tBtnStyle = 'background:none;border:1px solid #30363d;border-radius:4px;color:#58a6ff;font-size:0.7rem;padding:4px 8px;margin-bottom:6px;margin-top:2px;cursor:pointer;';
     var arrBtnStyle = 'background:none;border:1px solid #30363d;border-radius:4px;color:#8b949e;font-size:0.75rem;padding:2px 8px;cursor:pointer;';
     var delBtnStyle = 'background:none;border:1px solid #f87171;border-radius:4px;color:#f87171;font-size:0.7rem;padding:3px 8px;cursor:pointer;';
     var trashSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
@@ -399,7 +399,7 @@ function renderDedicationEntries() {
 
                 <div style="margin:8px 0 4px; display:flex; align-items:center; justify-content:space-between;">
                     <label for="dedHasIntention${idx}" style="font-size:0.75rem; color:#c9d1d9; cursor:pointer;">Has Intention / நோக்கம் உள்ளது</label>
-                    <input type="checkbox" id="dedHasIntention${idx}" onchange="toggleIntentionFields(${idx})" ${entry.hasIntention ? 'checked' : ''} style="accent-color:#2e7d32; width:16px; height:16px;">
+                    <input type="checkbox" id="dedHasIntention${idx}" onchange="toggleIntentionFields(${idx})" ${entry.hasIntention ? 'checked' : ''} style="accent-color:#58a6ff; width:16px; height:16px;">
                 </div>
 
                 <div id="intentionFields${idx}" style="${entry.hasIntention ? '' : 'display:none;'}">
@@ -444,7 +444,7 @@ function renderDedicationEntries() {
     if (isEditingDedication) {
         toggleHtml = '<div style="margin-bottom:8px;"><button onclick="cancelDedicationEdit()" style="background:none;border:1px solid #f87171;border-radius:6px;color:#f87171;padding:6px 14px;font-size:0.8rem;cursor:pointer;font-family:inherit;">✕ Cancel Editing</button></div>';
     } else if (dedicationEntries.length > 0) {
-        toggleHtml = '<div style="margin-bottom:8px;"><button onclick="enableDedicationEdit()" style="background:none;border:1px solid #5eead4;border-radius:6px;color:#5eead4;padding:6px 14px;font-size:0.8rem;cursor:pointer;font-family:inherit;">✏️ Edit</button></div>';
+        toggleHtml = '<div style="margin-bottom:8px;"><button onclick="enableDedicationEdit()" style="background:none;border:1px solid #58a6ff;border-radius:6px;color:#58a6ff;padding:6px 14px;font-size:0.8rem;cursor:pointer;font-family:inherit;">✏️ Edit</button></div>';
     }
     container.innerHTML = toggleHtml + (html || '<div style="font-size:0.8rem;color:#8b949e;">No dedications added yet.</div>');
 }
@@ -526,7 +526,7 @@ function dragOver(event, idx) {
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
     if (dragSourceIdx !== idx) {
-        event.target.style.borderColor = '#5eead4';
+        event.target.style.borderColor = '#58a6ff';
     }
 }
 

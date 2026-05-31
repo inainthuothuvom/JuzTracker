@@ -588,9 +588,9 @@ function openSupportAssignmentModal() {
         var statusTxt = fetchedStateCache.supportAssignmentStatus === 'Completed' ? '✅ Completed / நிறைவேற்றப்பட்டது' : '🔄 Reciting / ஓதிக்கொண்டிருக்கிறேன்';
         info.innerHTML += '<div style="color:#8b949e;font-size:0.8rem;margin-top:6px;padding-top:6px;border-top:1px solid #30363d;">' + statusTxt + '</div>';
         juzDetails.innerHTML =
-            '<div><span class="num-badge" style="background:#1c2d35;color:#5eead4;font-weight:600;font-size:0.8rem;padding:3px 8px;border-radius:4px;display:inline-block;">Juz ' + fetchedStateCache.supportingJuz + '</span></div>' +
+            '<div><span class="num-badge" style="background:#1c2d35;color:#58a6ff;font-weight:600;font-size:0.8rem;padding:3px 8px;border-radius:4px;display:inline-block;">Juz ' + fetchedStateCache.supportingJuz + '</span></div>' +
             '<div style="font-size:1.05rem;font-weight:600;color:#a5b4fc;margin:4px 0 2px;">' + (fetchedStateCache.supportingJuzAr || '') + '</div>' +
-            '<div style="font-size:0.85rem;color:#5eead4;">' + (fetchedStateCache.supportingJuzEn || '') + '</div>' +
+            '<div style="font-size:0.85rem;color:#58a6ff;">' + (fetchedStateCache.supportingJuzEn || '') + '</div>' +
             '<div style="font-size:0.85rem;color:#c9d1d9;">' + (fetchedStateCache.supportingJuzTa || '') + '</div>';
     }
     document.getElementById('supportAssignmentModal').style.display = 'flex';
