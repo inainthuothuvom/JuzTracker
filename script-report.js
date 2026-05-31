@@ -231,7 +231,7 @@ function selectBulkStatus(status) {
     document.getElementById('bulkStep2ConfirmBtn').disabled = false;
     document.getElementById('bulkStep2ConfirmBtn').innerText = 'Continue — ' + (labels[status] || status);
     document.querySelectorAll('#bulkStep2Overlay .btn-status-completed, #bulkStep2Overlay .btn-status-reciting, #bulkStep2Overlay .btn-status-exception').forEach(b => {
-        b.style.outline = b.getAttribute('onclick').includes("'" + status + "'") ? '2px solid #5eead4' : 'none';
+        b.style.outline = b.getAttribute('onclick').includes("'" + status + "'") ? '2px solid #58a6ff' : 'none';
     });
 }
 function openBulkConfirm() {
@@ -487,7 +487,7 @@ function captureElementToClipboard(element, btn, fileName, successMsg) {
                     btn.style.color = "#ffffff";
                     setTimeout(function() {
                         btn.innerText = fileName;
-                        btn.style.background = btn.id === 'shareBtn' ? "#2e7d32" : "#e65100";
+                        btn.style.background = btn.id === 'shareBtn' ? "#1f6feb" : "#e65100";
                         btn.style.color = "#ffffff";
                         btn.disabled = false;
                     }, 2500);
@@ -495,14 +495,14 @@ function captureElementToClipboard(element, btn, fileName, successMsg) {
                 }).catch(function() {
                     btn.disabled = false;
                     btn.innerText = fileName;
-                    btn.style.background = btn.id === 'shareBtn' ? "#2e7d32" : "#e65100";
+                    btn.style.background = btn.id === 'shareBtn' ? "#1f6feb" : "#e65100";
                     btn.style.color = "#ffffff";
                     showSnackbar("Failed to copy image. Try again.", true);
                 });
             } catch(e) {
                 btn.disabled = false;
                 btn.innerText = fileName;
-                btn.style.background = btn.id === 'shareBtn' ? "#2e7d32" : "#e65100";
+                btn.style.background = btn.id === 'shareBtn' ? "#1f6feb" : "#e65100";
                 btn.style.color = "#ffffff";
                 showSnackbar("Failed to copy image.", true);
             }
@@ -510,7 +510,7 @@ function captureElementToClipboard(element, btn, fileName, successMsg) {
     }).catch(function(err) {
         btn.disabled = false;
         btn.innerText = fileName;
-        btn.style.background = btn.id === 'shareBtn' ? "#2e7d32" : "#e65100";
+        btn.style.background = btn.id === 'shareBtn' ? "#1f6feb" : "#e65100";
         btn.style.color = "#ffffff";
         showSnackbar("Rendering failed.", true);
     });
@@ -556,7 +556,7 @@ function copyReportToClipboard() {
                     shareBtn.style.color = "#ffffff";
                     setTimeout(function() {
                         shareBtn.innerText = "Copy Report 📋";
-                        shareBtn.style.background = "#2e7d32";
+                        shareBtn.style.background = "#1f6feb";
                         shareBtn.style.color = "#ffffff";
                         shareBtn.disabled = false;
                     }, 2500);
@@ -564,14 +564,14 @@ function copyReportToClipboard() {
                 }).catch(function() {
                     shareBtn.disabled = false;
                     shareBtn.innerText = "Copy Report 📋";
-                    shareBtn.style.background = "#2e7d32";
+                    shareBtn.style.background = "#1f6feb";
                     shareBtn.style.color = "#ffffff";
                     showSnackbar("Failed to copy image. Try again.", true);
                 });
             } catch(e) {
                 shareBtn.disabled = false;
                 shareBtn.innerText = "Copy Report 📋";
-                shareBtn.style.background = "#2e7d32";
+                shareBtn.style.background = "#1f6feb";
                 shareBtn.style.color = "#ffffff";
                 showSnackbar("Failed to copy image.", true);
             }
@@ -580,7 +580,7 @@ function copyReportToClipboard() {
         document.body.removeChild(tempDiv);
         shareBtn.disabled = false;
         shareBtn.innerText = "Copy Report 📋";
-        shareBtn.style.background = "#2e7d32";
+        shareBtn.style.background = "#1f6feb";
         shareBtn.style.color = "#ffffff";
         showSnackbar("Rendering failed.", true);
     });
@@ -632,10 +632,10 @@ function copyHadiyaNoteToClipboard() {
 
     captureDiv.innerHTML =
         '<div style="width:480px; background:#0d1117; padding:28px 24px; box-sizing:border-box; font-family:Poppins, Arial, sans-serif;">' +
-        '<div style="height:3px; background:linear-gradient(90deg, #2dd4bf, #5eead4); margin:-28px -24px 20px -24px;"></div>' +
-        '<div style="font-size:1.1rem; font-weight:700; color:#5eead4; margin-bottom:1px;">' +
+        '<div style="height:3px; background:linear-gradient(90deg, #58a6ff, #58a6ff); margin:-28px -24px 20px -24px;"></div>' +
+        '<div style="font-size:1.1rem; font-weight:700; color:#58a6ff; margin-bottom:1px;">' +
         'Hadiya Completed</div>' +
-        '<div style="font-size:0.85rem; color:#5eead4; margin-bottom:10px;">' +
+        '<div style="font-size:0.85rem; color:#58a6ff; margin-bottom:10px;">' +
         tHadiyaSub + '</div>' +
         '<div style="border:none; border-top:1px solid #21262d; margin-bottom:12px;"></div>' +
         '<div style="font-size:0.85rem; color:#8b949e; margin-bottom:14px;">' +
@@ -647,7 +647,7 @@ function copyHadiyaNoteToClipboard() {
         tJazak + '</div>' +
         '<div style="font-size:0.85rem; color:#c9d1d9; line-height:1.7; margin-bottom:16px;">' +
         tDedicated + '</div>' +
-        '<div style="font-size:1rem; font-weight:600; color:#5eead4; margin-bottom:1px;">' +
+        '<div style="font-size:1rem; font-weight:600; color:#58a6ff; margin-bottom:1px;">' +
         escapeHtml(cur.ta || cur.en) + '</div>' +
         '<div style="font-size:0.9rem; color:#c9d1d9; margin-bottom:14px;">' +
         escapeHtml(cur.en) + '</div>' +
@@ -688,7 +688,7 @@ function copyHadiyaNoteToClipboard() {
     var topBar = document.createElement('div');
     topBar.style.cssText = 'width:480px;display:flex;justify-content:space-between;align-items:center;padding:10px 24px;box-sizing:border-box;';
     topBar.innerHTML =
-        '<button id="hadiyaCopyBtn" style="background:#238636;color:#fff;border:none;border-radius:6px;padding:8px 18px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 1px 3px rgba(0,0,0,0.3);">Copy 📋</button>' +
+        '<button id="hadiyaCopyBtn" style="background:#1f6feb;color:#fff;border:none;border-radius:6px;padding:8px 18px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 1px 3px rgba(0,0,0,0.3);">Copy 📋</button>' +
         '<button id="hadiyaCloseBtn" style="background:none;border:none;font-size:1.8rem;color:#8b949e;cursor:pointer;line-height:1;padding:0;margin-right:-4px;font-family:inherit;">&times;</button>';
 
     var previewWrap = document.createElement('div');
