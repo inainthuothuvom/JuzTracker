@@ -136,6 +136,18 @@ function displayHadiya(res) {
     var cur = res.current;
     var isCompleted = cur.status === "Completed";
     var isCurrentWeek = res.currentIndex === res.todayIndex;
+
+    var titleEl = hadiyaBox.querySelector('.hadiya-title');
+    if (titleEl) {
+        if (isCurrentWeek) {
+            titleEl.innerHTML = "This Week's Hadiya <br> இந்த வார ஹதியா";
+        } else {
+            var label = res.currentIndex < res.todayIndex
+                ? 'Previous Hadiya<br>கடந்த ஹதியா'
+                : 'Upcoming Hadiya<br>வரவிருக்கும் ஹதியா';
+            titleEl.innerHTML = label;
+        }
+    }
     
     // Apply color class
     if (isCurrentWeek) {
@@ -164,7 +176,6 @@ function displayHadiya(res) {
         <div style="font-size:0.75rem; color:#8b949e;">${cur.ta}</div>
     </div>`;
 
-    var deadlineDisplay = '';
     var counterCol = '';
     var shouldStartCountdown = false;
     
@@ -193,11 +204,9 @@ function displayHadiya(res) {
         }
         
         if (canShowCountdown) {
-            deadlineDisplay = formatDisplayDate(cur.deadlineDisplay);
             counterCol = `<div class="hadiya-counter-col">
                 <div class="counter-days" id="hadiyaCounterDays">--</div>
                 <div class="counter-hms" id="hadiyaCounterHms">--:--:--</div>
-                <div class="hadiya-deadline-label" style="font-size:0.55rem;color:#8b949e;margin-top:1px;white-space:nowrap;">Deadline: ${deadlineDisplay}</div>
             </div>`;
             shouldStartCountdown = true;
         }
@@ -257,7 +266,7 @@ function displayHadiya(res) {
     }
 
     const prevSec = document.getElementById('prevSection');
-    if (res.previous) {
+    if (isCurrentWeek && res.previous) {
         prevSec.style.display = "block";
         document.getElementById('hadPrev').innerHTML = 
             `<b style="font-size:0.65rem;">${res.previous.range}</b><br>` +
@@ -268,14 +277,12 @@ function displayHadiya(res) {
     }
     
     const nextSec = document.getElementById('nextSection');
-    if (res.next) {
+    if (isCurrentWeek && res.next) {
         nextSec.style.display = "block";
-        var nextStartDisplay = res.next.nextStartDisplay ? formatDisplayDate(res.next.nextStartDisplay) : '';
         document.getElementById('hadNext').innerHTML = 
             `<b style="font-size:0.65rem;">${res.next.range}</b><br>` +
             `${res.next.en}<br>` +
-            `<span style="font-size:0.65rem; color:#8b949e;">${res.next.ta}</span>` +
-            (nextStartDisplay ? `<div style="font-size:0.55rem;color:#8b949e;margin-top:2px;">Starts: ${nextStartDisplay}</div>` : '');
+            `<span style="font-size:0.65rem; color:#8b949e;">${res.next.ta}</span>`;
     } else {
         nextSec.style.display = "none";
     }

@@ -177,9 +177,12 @@
             z-index: 10;
             white-space: nowrap;
         }
-        .hadiya-container.current-week { border: 2px solid #5eead4; }
-        .hadiya-container.past-week { border: 2px solid #8b949e; }
-        .hadiya-container.future-week { border: 2px solid #d29922; }
+        .hadiya-container.current-week { border: 2px solid #5eead4; background: #0c0e12; }
+        .hadiya-container.past-week { border: 2px solid #30363d; }
+        .hadiya-container.past-week .hadiya-title { color: #8b949e; }
+        .hadiya-container.past-week .hadiya-main { color: #8b949e; }
+        .hadiya-container.future-week { border: 2px solid #d29922; background: linear-gradient(135deg, #1c1a14 0%, #161b22 100%); }
+        .hadiya-container.future-week .hadiya-title { color: #d29922; }
         .dedication-entry-box input, .dedication-entry-box textarea {
             width: 100%; background: #161b22; border: 1px solid #30363d; border-radius: 6px; color: #e6edf3; padding: 8px; font-size: 0.85rem; font-family: inherit; margin-bottom: 8px; box-sizing: border-box;
         }
