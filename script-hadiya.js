@@ -129,7 +129,7 @@ function goToCurrentWeek() {
 function displayHadiya(res) {
     var hadiyaBox = document.getElementById('hadiyaBox');
     hadiyaBox.classList.remove('hadiya-loading');
-    hadiyaBox.classList.remove('current-week', 'past-week', 'future-week');
+    hadiyaBox.classList.remove('current-week', 'past-week', 'past-week-completed', 'future-week');
     
     if (!res || !res.current) {
         hadiyaBox.style.display = "none";
@@ -163,7 +163,7 @@ function displayHadiya(res) {
     if (isCurrentWeek) {
         hadiyaBox.classList.add('current-week');
     } else if (cur.weekEndDate && new Date(cur.weekEndDate) < new Date()) {
-        hadiyaBox.classList.add('past-week');
+        hadiyaBox.classList.add(isCompleted ? 'past-week-completed' : 'past-week');
     } else {
         hadiyaBox.classList.add('future-week');
     }
