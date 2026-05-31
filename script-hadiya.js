@@ -118,6 +118,14 @@ function navigateHadiya(dir) {
     input.dispatchEvent(new Event('change'));
 }
 
+function goToCurrentWeek() {
+    var input = document.getElementById('dateInput');
+    var d = new Date();
+    var p = function(n) { return String(n).padStart(2,'0'); };
+    input.value = d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate());
+    input.dispatchEvent(new Event('change'));
+}
+
 function displayHadiya(res) {
     var hadiyaBox = document.getElementById('hadiyaBox');
     hadiyaBox.classList.remove('hadiya-loading');
@@ -141,11 +149,13 @@ function displayHadiya(res) {
     if (titleEl) {
         if (isCurrentWeek) {
             titleEl.innerHTML = "This Week's Hadiya <br> இந்த வார ஹதியா";
+            titleEl.style.display = '';
         } else {
             var label = res.currentIndex < res.todayIndex
                 ? 'Previous Hadiya<br>கடந்த ஹதியா'
                 : 'Upcoming Hadiya<br>வரவிருக்கும் ஹதியா';
             titleEl.innerHTML = label;
+            titleEl.style.position = '';
         }
     }
     
