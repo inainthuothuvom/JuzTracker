@@ -179,8 +179,8 @@
                         var compTime = st.completed_date_time || '';
                         var excTime = st.exception_raised_time || '';
                         statusTimestamp = compTime || excTime || '';
-                        if (currentTrackerStatus === 'Completed' && compTime) trackerLastModified = 'Completed on: ' + compTime;
-                        else if (currentTrackerStatus === 'Exception Raised' && excTime) trackerLastModified = 'Exception raised on: ' + excTime;
+                        if (currentTrackerStatus === 'Completed' && compTime) trackerLastModified = 'Completed on: ' + formatDisplayDate(compTime);
+                        else if (currentTrackerStatus === 'Exception Raised' && excTime) trackerLastModified = 'Exception raised on: ' + formatDisplayDate(excTime);
                         var result = {
                             number: assignedJuz,
                             dateFound: formatDateDDMMMYYYY(st.week_start),

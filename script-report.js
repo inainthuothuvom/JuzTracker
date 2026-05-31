@@ -27,9 +27,8 @@ function fetchAndRenderReport(dateVal, onComplete) {
         sortAsc = false;
         applyReportFilter();
         requestAnimationFrame(function() {
-            var hb = document.querySelector('.report-header-bar');
             var th = document.querySelector('.report-table thead');
-            if (hb && th) th.style.top = hb.offsetHeight + 'px';
+            if (th) th.style.top = '0px';
         });
         if (onComplete) onComplete();
     }).getWeeklyReport(dateVal);
@@ -131,17 +130,18 @@ function scrollReportToResults() {
 function toggleSearchBar() {
     searchVisible = !searchVisible;
     const input = document.getElementById('reportSearchInput');
-    input.style.display = searchVisible ? 'block' : 'none';
+    const searchRow = input.closest('.report-search-row');
+    searchRow.style.display = searchVisible ? '' : 'none';
     if (searchVisible) {
         setTimeout(function() {
             input.focus();
-            input.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }, 100);
     } else {
         input.value = '';
         applyReportFilter();
     }
 }
+
 function toggleBulkMode() {
     bulkMode = !bulkMode;
     const btn = document.getElementById('bulkToggleBtn');
@@ -152,18 +152,22 @@ function toggleBulkMode() {
         btn.innerHTML = 'Bulk ⚡';
         panel.style.display = 'flex';
         ths.forEach(th => th.style.display = 'table-cell');
-        document.getElementById('reportSearchInput').style.display = 'block';
+        document.getElementById('reportSearchInput').closest('.report-search-row').style.display = '';
+        document.querySelector('.report-week-row th').colSpan = 4;
+        document.querySelector('.report-search-row th').colSpan = 4;
         searchVisible = true;
     } else {
         btn.classList.remove('active');
         btn.innerHTML = 'Bulk ⚡';
         panel.style.display = 'none';
         ths.forEach(th => th.style.display = 'none');
+        document.querySelector('.report-week-row th').colSpan = 3;
+        document.querySelector('.report-search-row th').colSpan = 3;
         selectedUserIds.clear();
         document.getElementById('bulkApplyBtn').disabled = true;
         document.getElementById('bulkApplyBtn').innerText = 'Process 0';
         if (!searchVisible) {
-            document.getElementById('reportSearchInput').style.display = 'none';
+            document.getElementById('reportSearchInput').closest('.report-search-row').style.display = 'none';
         }
     }
     closeTimePickers();
@@ -632,10 +636,10 @@ function copyHadiyaNoteToClipboard() {
 
     captureDiv.innerHTML =
         '<div style="width:480px; background:#0d1117; padding:28px 24px; box-sizing:border-box; font-family:Poppins, Arial, sans-serif;">' +
-        '<div style="height:3px; background:linear-gradient(90deg, #58a6ff, #58a6ff); margin:-28px -24px 20px -24px;"></div>' +
-        '<div style="font-size:1.1rem; font-weight:700; color:#58a6ff; margin-bottom:1px;">' +
+        '<div style="height:3px; background:linear-gradient(90deg, #58a6ff, #79c0ff); margin:-28px -24px 20px -24px;"></div>' +
+        '<div style="font-size:1.1rem; font-weight:700; color:#79c0ff; margin-bottom:1px;">' +
         'Hadiya Completed</div>' +
-        '<div style="font-size:0.85rem; color:#58a6ff; margin-bottom:10px;">' +
+        '<div style="font-size:0.85rem; color:#79c0ff; margin-bottom:10px;">' +
         tHadiyaSub + '</div>' +
         '<div style="border:none; border-top:1px solid #21262d; margin-bottom:12px;"></div>' +
         '<div style="font-size:0.85rem; color:#8b949e; margin-bottom:14px;">' +
