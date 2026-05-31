@@ -194,20 +194,27 @@
             </div>
         </div>
         <div id="reportCaptureArea" style="border-top:1px solid #21262d;flex:1;overflow-y:auto;overflow-x:hidden;padding:10px 14px;">
-            <div class="report-header-bar" id="reportHeaderBar">
-                <span>Week / வாரம் : <span id="reportWeekLabel"></span></span>
-                <span class="report-count-badge" id="reportCountBadge">Count / எண்ணிக்கை - 0</span>
-            </div>
-                <input type="text" id="reportSearchInput" class="report-search" placeholder="Search by name / பெயரால் தேட..." oninput="applyReportFilter()" onfocus="this.select(); scrollReportToResults()" style="display:none;margin-bottom:8px;">
-
             <div id="reportTableWrapper">
                 <table class="report-table">
                     <thead>
-                        <tr>
-                            <th class="bulk-checkbox-cell report-bulk-th" style="display:none;width:32px;padding:4px!important;text-align:center;"></th>
-                            <th style="width: 38%" onclick="sortReportData('name')">Name <br> பெயர்<span class="sort-indicator" id="sortIndicatorName"></span></th>
-                            <th style="width: 27%; padding-left: 20px;" onclick="sortReportData('juz')">Juz <br> ஜுஸ்<span class="sort-indicator" id="sortIndicatorJuz"></span></th>
-                            <th style="width: 35%" onclick="sortReportData('status')">Status <br> நிலை<span class="sort-indicator" id="sortIndicatorStatus"></span></th>
+                        <tr class="report-week-row">
+                            <th colspan="3" style="padding:8px 4px;border-bottom:2px solid #30363d;background:#0d1117;word-break:break-word;overflow:hidden;">
+                                <div style="display:flex;justify-content:space-between;align-items:center;gap:4px;flex-wrap:wrap;max-width:100%;">
+                                    <span style="font-size:0.8rem;font-weight:700;color:#c9b896;">Week / வாரம் : <span id="reportWeekLabel"></span></span>
+                                    <span class="report-count-badge" id="reportCountBadge">Count / எண்ணிக்கை - 0</span>
+                                </div>
+                            </th>
+                        </tr>
+                        <tr class="report-search-row" style="display:none;">
+                            <th colspan="3" style="padding:4px 0;border-bottom:1px solid #21262d;background:#0d1117;">
+                                <input type="text" id="reportSearchInput" class="report-search" placeholder="Search by name / பெயரால் தேட..." oninput="applyReportFilter()" onfocus="this.select(); scrollReportToResults()">
+                            </th>
+                        </tr>
+                        <tr class="report-col-header-row">
+                            <th class="bulk-checkbox-cell report-bulk-th" style="display:none;"></th>
+                            <th style="width:40%;" onclick="sortReportData('name')">Name <br> பெயர்<span class="sort-indicator" id="sortIndicatorName"></span></th>
+                            <th style="width:30%;" onclick="sortReportData('juz')">Juz <br> ஜுஸ்<span class="sort-indicator" id="sortIndicatorJuz"></span></th>
+                            <th style="width:30%;" onclick="sortReportData('status')">Status <br> நிலை<span class="sort-indicator" id="sortIndicatorStatus"></span></th>
                         </tr>
                     </thead>
                     <tbody id="reportTableBody">
@@ -233,7 +240,7 @@
 <div class="confirm-overlay" id="bulkStep2Overlay">
     <div class="confirm-box" style="max-width:380px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-            <h3 style="margin:0;color:#58a6ff;font-size:1rem;font-weight:600;">Bulk Update — Step 2</h3>
+            <h3 style="margin:0;color:#79c0ff;font-size:1rem;font-weight:600;">Bulk Update — Step 2</h3>
             <span class="close-btn" onclick="closeBulkStep2()" style="font-size:1.5rem;">&times;</span>
         </div>
         <div id="bulkStep2Info" style="font-size:0.85rem;color:#8b949e;margin-bottom:10px;">Loading...</div>
@@ -273,7 +280,7 @@
 <div id="reportEditModal" class="modal">
     <div class="modal-content" style="max-width:360px;">
         <div class="modal-header" style="border-bottom:none; margin-bottom:5px; padding-bottom:0;">
-            <span class="modal-title" style="font-size:1rem; color:#58a6ff;">Update Status / நிலை மாற்ற</span>
+            <span class="modal-title" style="font-size:1rem; color:#79c0ff;">Update Status / நிலை மாற்ற</span>
             <span class="close-btn" onclick="closeReportEditModal()">&times;</span>
         </div>
         <div style="margin-bottom:15px;">
@@ -314,7 +321,7 @@
 <div id="hadiyaEditModal" class="modal">
     <div class="modal-content" style="max-width:380px;">
         <div class="modal-header" style="border-bottom:none; margin-bottom:5px; padding-bottom:0;">
-            <span class="modal-title" style="font-size:1rem; color:#58a6ff;">Edit Hadiya / ஹதியாவை மாற்ற</span>
+            <span class="modal-title" style="font-size:1rem; color:#79c0ff;">Edit Hadiya / ஹதியாவை மாற்ற</span>
             <span class="close-btn" onclick="closeHadiyaEditModal()">&times;</span>
         </div>
         <div style="margin-bottom:15px;">
@@ -369,7 +376,7 @@
 <div id="supportAssignmentModal" class="modal" style="display:none;">
     <div class="modal-content" style="max-width:420px;">
         <div class="modal-header">
-            <span class="modal-title" style="color:#58a6ff;">🤝 உதவி வாசிப்பு நிலை / Support Status</span>
+            <span class="modal-title" style="color:#79c0ff;">🤝 உதவி வாசிப்பு நிலை / Support Status</span>
             <span class="close-btn" onclick="closeSupportAssignmentModal()">&times;</span>
         </div>
         <div style="padding:12px 0;">
