@@ -52,7 +52,7 @@
     <div class="form-group">
         <label>Select Name <br> பெயரைத் தேர்ந்தெடுக்கவும்</label>
         <div class="searchable-select-container">
-            <input type="text" id="userSearch" class="search-input" placeholder="Type to search..." autocomplete="off" onfocus="openUserDropdown()" oninput="filterUserOptions()" onblur="setTimeout(closeUserDropdown, 200)" value="">
+            <input type="text" id="userSearch" class="search-input" placeholder="Type to search..." autocomplete="off" onfocus="this.select(); openUserDropdown()" oninput="filterUserOptions()" onblur="setTimeout(closeUserDropdown, 200)" value="">
             <div class="searchable-dropdown" id="userDropdown"></div>
             <input type="hidden" id="userSelect" value="">
         </div>
@@ -198,7 +198,7 @@
                 <span>Week / வாரம் : <span id="reportWeekLabel"></span></span>
                 <span class="report-count-badge" id="reportCountBadge">Count / எண்ணிக்கை - 0</span>
             </div>
-            <input type="text" id="reportSearchInput" class="report-search" placeholder="Search by name / பெயரால் தேட..." oninput="applyReportFilter()" onfocus="scrollReportToResults()" style="display:none;margin-bottom:8px;">
+                <input type="text" id="reportSearchInput" class="report-search" placeholder="Search by name / பெயரால் தேட..." oninput="applyReportFilter()" onfocus="this.select(); scrollReportToResults()" style="display:none;margin-bottom:8px;">
 
             <div id="reportTableWrapper">
                 <table class="report-table">

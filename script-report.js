@@ -531,7 +531,6 @@ function copyReportToClipboard() {
     tempDiv.innerHTML = captureArea.innerHTML;
 
     tempDiv.querySelectorAll('th').forEach(function(th) { th.style.position = 'static'; });
-    tempDiv.querySelectorAll('a[onclick*="openReportEditModal"]').forEach(function(el) { el.style.display = 'none'; });
     var cw = tempDiv.querySelector('#reportTableWrapper');
     if (cw) { cw.style.maxHeight = 'none'; }
 
