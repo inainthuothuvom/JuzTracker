@@ -57,7 +57,6 @@ function openReportModal() {
 let reportEditUserId = null;
 
 function openReportEditModal(userId, name, currentStatus, dateLogged) {
-    if (!isCurrentUserAdmin()) { showSnackbar("Only admins can edit report status.", true); return; }
     if (!reportIsEditable) {
         showSnackbar("Status updates are locked for this week.", true);
         return;
@@ -79,7 +78,6 @@ function closeReportEditModal() {
 }
 
 function submitReportEditStatus(newStatus) {
-    if (!isCurrentUserAdmin()) { showSnackbar("Only admins can update status.", true); return; }
     if (!reportEditUserId) return;
     if (!rawReportData) return;
     
@@ -338,7 +336,7 @@ function renderReportRows(items) {
                 let supStatusText = row.supportStatus === "Completed" ? "Completed ✅" : "Reciting 🔄";
                 dateLoggedInfo += `<span class="date-logged" style="color: #58a6ff; font-weight:600;">🤝 Support: ${row.supportedBy} (${supStatusText})</span>`;
             } else {
-                dateLoggedInfo += `<span class="date-logged" style="color: #f87171; font-weight:600;">⚠️ ${isCurrentUserAdmin() ? '<a href="#" onclick="openReassignFromReport(\'' + row.userId + '\', ' + row.juzNum + ', \'' + row.name.replace(/'/g, "\\'") + '\'); return false;" style="color:#f87171;">' : ''}Exception Unassigned${isCurrentUserAdmin() ? '</a>' : ''}</span>`;
+                dateLoggedInfo += `<span class="date-logged" style="color: #f87171; font-weight:600;">⚠️ <a href="#" onclick="openReassignFromReport('${row.userId}', ${row.juzNum}, '${row.name.replace(/'/g, "\\'")}'); return false;" style="color:#f87171;">Exception Unassigned</a></span>`;
             }
         }
 
@@ -347,7 +345,7 @@ function renderReportRows(items) {
         let taName = nameParts[1] ? `<span>${nameParts[1]}</span>` : '';
 
         let statusBadgeHtml = `<span class="badge ${badgeClass}">${resolvedStatus}</span>`;
-        if (reportIsEditable && row.userId && !bulkMode && isCurrentUserAdmin()) {
+        if (reportIsEditable && row.userId && !bulkMode) {
             const rawStatus = row.status || "Not Started";
             const encName = row.name.replace(/'/g, "\\'");
             const encDate = (row.dateLogged || '').replace(/'/g, "\\'");

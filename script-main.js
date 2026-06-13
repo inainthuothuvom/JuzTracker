@@ -30,54 +30,6 @@ let fetchedStateCache = null;
 
 let userListData = [];
 
-function doLogin() {
-    var email = document.getElementById('loginEmail').value.trim();
-    var password = document.getElementById('loginPassword').value;
-    if (!email || !password) { showSnackbar("Please enter email and password.", true); return; }
-    var btn = document.getElementById('loginBtn');
-    btn.disabled = true;
-    btn.innerText = "Signing in...";
-    window.appApi.withSuccessHandler(function(user) {
-        btn.disabled = false;
-        btn.innerHTML = 'Sign In / உள்நுழை';
-        if (user) {
-            updateAuthUI(user);
-            showSnackbar("Signed in as " + (user.name_en || email), false);
-        } else {
-            showSnackbar("Invalid email or password.", true);
-        }
-    }).withFailureHandler(function(err) {
-        btn.disabled = false;
-        btn.innerHTML = 'Sign In / உள்நுழை';
-        showSnackbar("Login failed: " + (err.message || 'Error'), true);
-    }).signIn(email, password);
-}
-
-function doLogout() {
-    clearSession();
-    updateAuthUI(null);
-    showSnackbar("Signed out.", false);
-}
-
-function updateAuthUI(user) {
-    if (!user) user = getSession();
-    var loginForm = document.getElementById('loginForm');
-    var userInfo = document.getElementById('userInfo');
-    if (user && user.role) {
-        loginForm.style.display = 'none';
-        userInfo.style.display = 'flex';
-        document.getElementById('userDisplayName').innerText = user.name_en || user.name_ta || user.email || '';
-        document.getElementById('userRoleBadge').innerText = user.role === 'admin' ? 'Admin' : 'User';
-        document.getElementById('userRoleBadge').style.borderColor = user.role === 'admin' ? '#58a6ff' : '#30363d';
-        document.getElementById('userRoleBadge').style.color = user.role === 'admin' ? '#58a6ff' : '#8b949e';
-        document.body.classList.toggle('is-admin', user.role === 'admin');
-    } else {
-        loginForm.style.display = 'flex';
-        userInfo.style.display = 'none';
-        document.body.classList.remove('is-admin');
-    }
-}
-
 function refreshUserDropdown(dateVal) {
     const prevId = document.getElementById('userSelect').value;
     window.appApi.withSuccessHandler(function(users) {
@@ -101,7 +53,6 @@ function refreshUserDropdown(dateVal) {
 }
 
 window.onload = function() {
-    updateAuthUI();
     (function(){var now=new Date();var IST_MS=5.5*3600000;var ist=new Date(now.getTime()+now.getTimezoneOffset()*60000+IST_MS);var p=function(n){return String(n).padStart(2,'0')};document.getElementById('dateInput').value=ist.getFullYear()+'-'+p(ist.getMonth()+1)+'-'+p(ist.getDate())+'T'+p(ist.getHours())+':'+p(ist.getMinutes());})();
     const today = document.getElementById('dateInput').value;
     refreshUserDropdown(today);
@@ -304,7 +255,6 @@ function configureStatusEditLock(statusVal, resData) {
 }
 
 function enableStatusEditing() {
-    if (!isCurrentUserAdmin()) { showSnackbar("Only admins can edit status.", true); return; }
     if (isPastNextHadiyaStart()) {
         showSnackbar("Next Hadiya has started. Status updates are locked.", true);
         return;
@@ -340,7 +290,6 @@ function cancelStatusEditing() {
 }
 
 function enableSupportStatusEditing() {
-    if (!isCurrentUserAdmin()) { showSnackbar("Only admins can edit support status.", true); return; }
     if (isPastNextHadiyaStart()) {
         showSnackbar("Next Hadiya has started. Support status updates are locked.", true);
         return;
@@ -538,7 +487,6 @@ function submitQuery() {
 }
 
 function submitDirectStatus(statusVal) {
-    if (!isCurrentUserAdmin()) { showSnackbar("Only admins can update status.", true); return; }
     const id = document.getElementById('userSelect').value;
     const dateInputVal = document.getElementById('dateInput').value;
     const weekVal = (currentHadiyaDetails && currentHadiyaDetails.weekStart) || dateInputVal;
@@ -600,7 +548,6 @@ function submitDirectStatus(statusVal) {
 }
 
 function submitSupportStatusDirect(newSupStatus) {
-    if (!isCurrentUserAdmin()) { showSnackbar("Only admins can update support status.", true); return; }
     if (isPastNextHadiyaStart()) {
         showSnackbar("Next Hadiya has started. Support status updates are locked.", true);
         return;
@@ -667,22 +614,80 @@ function submitSupportFromAssignment(newSupStatus) {
 }
 
 function openSupportAssignmentModal() {
-    var info = document.getElementById('supportAssignmentModalInfo');
-    var juzDetails = document.getElementById('supportAssignmentJuzDetails');
-    var details = document.getElementById('supportAssignmentDetails');
-    if (details) {
-        info.innerHTML = '<div style="font-weight:600;font-size:1rem;color:#e6edf3;">' + details.innerHTML + '</div>';
+    console.log('=== DEBUG openSupportAssignmentModal called ===');
+    var modal = document.getElementById('supportAssignmentModal');
+    console.log('modal element:', modal);
+    if (modal) {
+        // Fix: ensure modal is a direct child of body (not nested inside hadiya menu)
+        if (modal.parentElement !== document.body) {
+            console.log('FIX: moving supportAssignmentModal back to body');
+            document.body.appendChild(modal);
+        }
+        console.log('modal className:', modal.className);
+        console.log('modal classList:', modal.classList.toString());
+        console.log('modal computed display before:', getComputedStyle(modal).display);
+        console.log('modal inline style before:', modal.getAttribute('style'));
+        console.log('modal offsetParent before:', modal.offsetParent);
+        console.log('modal z-index:', getComputedStyle(modal).zIndex);
+        console.log('modal position:', getComputedStyle(modal).position);
+        console.log('modal visibility:', getComputedStyle(modal).visibility);
+        console.log('modal opacity:', getComputedStyle(modal).opacity);
+        console.log('modal parent:', modal.parentElement);
+        console.log('modal parent id:', modal.parentElement ? modal.parentElement.id : 'N/A');
+        console.log('modal parent tag:', modal.parentElement ? modal.parentElement.tagName : 'N/A');
+        console.log('modal parent is body:', modal.parentElement === document.body);
+        // Check if any ancestor has display:none
+        var el = modal;
+        var chain = [];
+        while (el) {
+            var d = getComputedStyle(el).display;
+            if (d === 'none') console.log('ANCESTOR with display:none:', el.id || el.className || el.tagName, el);
+            chain.push({ tag: el.tagName, id: el.id, class: el.className, display: d });
+            if (el === document.body) break;
+            el = el.parentElement;
+        }
+        console.log('ANCESTOR CHAIN:', JSON.stringify(chain));
+        // Check how many modal overlays are visible
+        document.querySelectorAll('.modal').forEach(function(m) {
+            if (getComputedStyle(m).display !== 'none') {
+                console.log('VISIBLE modal:', m.id, m.className);
+            }
+        });
+        modal.style.display = 'flex';
+        console.log('modal computed display after:', getComputedStyle(modal).display);
+        console.log('modal inline style after:', modal.getAttribute('style'));
+    } else {
+        console.error('MODAL NOT FOUND IN DOM!');
     }
-    if (fetchedStateCache) {
-        var statusTxt = fetchedStateCache.supportAssignmentStatus === 'Completed' ? '✅ Completed / நிறைவேற்றப்பட்டது' : '🔄 Reciting / ஓதிக்கொண்டிருக்கிறேன்';
-        info.innerHTML += '<div style="color:#8b949e;font-size:0.8rem;margin-top:6px;padding-top:6px;border-top:1px solid #30363d;">' + statusTxt + '</div>';
-        juzDetails.innerHTML =
-            '<div><span class="num-badge" style="background:#1c2d35;color:#58a6ff;font-weight:600;font-size:0.8rem;padding:3px 8px;border-radius:4px;display:inline-block;">Juz ' + fetchedStateCache.supportingJuz + '</span></div>' +
-            '<div style="font-size:1.05rem;font-weight:600;color:#a5b4fc;margin:4px 0 2px;">' + (fetchedStateCache.supportingJuzAr || '') + '</div>' +
-            '<div style="font-size:0.85rem;color:#58a6ff;">' + (fetchedStateCache.supportingJuzEn || '') + '</div>' +
-            '<div style="font-size:0.85rem;color:#c9d1d9;">' + (fetchedStateCache.supportingJuzTa || '') + '</div>';
+    try {
+        var info = document.getElementById('supportAssignmentModalInfo');
+        var juzDetails = document.getElementById('supportAssignmentJuzDetails');
+        var details = document.getElementById('supportAssignmentDetails');
+        console.log('info element:', info, 'juzDetails:', juzDetails, 'details:', details);
+        if (details && info) {
+            info.innerHTML = '<div style="font-weight:600;font-size:1rem;color:#e6edf3;">' + details.innerHTML + '</div>';
+        }
+        if (typeof fetchedStateCache !== 'undefined' && fetchedStateCache && info && juzDetails) {
+            var statusTxt = fetchedStateCache.supportAssignmentStatus === 'Completed' ? '✅ Completed / நிறைவேற்றப்பட்டது' : '🔄 Reciting / ஓதிக்கொண்டிருக்கிறேன்';
+            info.innerHTML += '<div style="color:#8b949e;font-size:0.8rem;margin-top:6px;padding-top:6px;border-top:1px solid #30363d;">' + statusTxt + '</div>';
+            juzDetails.innerHTML =
+                '<div><span class="num-badge" style="background:#1c2d35;color:#58a6ff;font-weight:600;font-size:0.8rem;padding:3px 8px;border-radius:4px;display:inline-block;">Juz ' + fetchedStateCache.supportingJuz + '</span></div>' +
+                '<div style="font-size:1.05rem;font-weight:600;color:#a5b4fc;margin:4px 0 2px;">' + (fetchedStateCache.supportingJuzAr || '') + '</div>' +
+                '<div style="font-size:0.85rem;color:#58a6ff;">' + (fetchedStateCache.supportingJuzEn || '') + '</div>' +
+                '<div style="font-size:0.85rem;color:#c9d1d9;">' + (fetchedStateCache.supportingJuzTa || '') + '</div>';
+        }
+    } catch(e) {
+        console.error('openSupportAssignmentModal error:', e);
     }
-    document.getElementById('supportAssignmentModal').style.display = 'flex';
+    // Check if modal gets hidden shortly after
+    var checkModal = document.getElementById('supportAssignmentModal');
+    if (checkModal) {
+        var initialDisplay = getComputedStyle(checkModal).display;
+        setTimeout(function() {
+            var laterDisplay = getComputedStyle(checkModal).display;
+            console.log('DEBUG: modal display after 500ms:', laterDisplay, '(was:', initialDisplay + ')');
+        }, 500);
+    }
 }
 
 function closeSupportAssignmentModal() {
@@ -690,7 +695,6 @@ function closeSupportAssignmentModal() {
 }
 
 function openReassignModal() {
-    if (!isCurrentUserAdmin()) { showSnackbar("Only admins can assign support readers.", true); return; }
     const modal = document.getElementById('reassignModal');
     const select = document.getElementById('supportUserSelect');
     const metaText = document.getElementById('reassignMetaText');
@@ -723,7 +727,6 @@ function openReassignModal() {
 }
 
 function submitReassignment() {
-    if (!isCurrentUserAdmin()) { showSnackbar("Only admins can assign support readers.", true); return; }
     if (isPastNextHadiyaStart()) {
         showSnackbar("Next Hadiya has started. Reassignment is locked.", true);
         return;
@@ -783,7 +786,6 @@ function openReassignFromReport(userId, juzNum, rawName) {
 var memberListData = [];
 
 function openMemberManager() {
-    if (!isCurrentUserAdmin()) { showSnackbar("Only admins can manage members.", true); return; }
     document.getElementById('memberManagerModal').style.display = 'flex';
     document.getElementById('memberFormFields').style.display = 'none';
     document.getElementById('memberSelectId').value = '';
@@ -912,6 +914,6 @@ function saveMember() {
             else showSnackbar("Error: " + (r.error || 'unknown'), true);
         }).withFailureHandler(function(e) {
             showSnackbar("Add failed: " + (e.message || e || 'unknown'), true);
-        }).addMember(nameEn, nameTa, replaced.custom_id, effDate, null, null, null, null);
+        }).addMember(nameEn, nameTa, replaced.custom_id, effDate);
     }
 }

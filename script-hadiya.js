@@ -64,7 +64,6 @@ function startHadiyaCountdown(deadlineISO) {
 }
 
 function openHadiyaEditModal() {
-    if (!isCurrentUserAdmin()) { showSnackbar("Only admins can edit Hadiya.", true); return; }
     var cur = currentHadiyaDetails && currentHadiyaDetails.current;
     if (!cur) return;
     document.getElementById('hadiyaEditNominee').innerHTML = cur.en + ' / ' + cur.ta + ' (' + cur.range + ')';
@@ -87,6 +86,76 @@ function openHadiyaEditModal() {
 function closeHadiyaEditModal() {
     document.getElementById('hadiyaEditModal').style.display = 'none';
 }
+
+var hadiyaMenuNavStack = [];
+
+function openHadiyaMenuModal() {
+    hadiyaMenuNavStack = [];
+    var rangeEl = document.getElementById('hadiyaMenuDateRange');
+    if (currentHadiyaDetails && currentHadiyaDetails.current) {
+        var cur = currentHadiyaDetails.current;
+        var dl = cur.deadlineISO;
+        var ns = cur.nextStartISO;
+        var fmt = function(iso) {
+            if (!iso) return '—';
+            var d = new Date(String(iso).trim().replace(' ','T'));
+            if (isNaN(d.getTime())) return iso;
+            var opts = { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' };
+            return d.toLocaleDateString('en-US', opts);
+        };
+        rangeEl.innerText = fmt(dl) + ' — ' + fmt(ns);
+    } else {
+        rangeEl.innerText = 'No active Hadiya';
+    }
+    document.getElementById('hadiyaMenuMain').style.display = 'block';
+    document.getElementById('hadiyaMenuSchedule').style.display = 'none';
+    document.getElementById('hadiyaMenuStatus').style.display = 'none';
+    document.getElementById('hadiyaMenuModal').style.display = 'flex';
+}
+function closeHadiyaMenuModal() {
+    document.getElementById('hadiyaMenuModal').style.display = 'none';
+}
+function openHadiyaMenuView(viewId) {
+    var cur = currentHadiyaDetails && currentHadiyaDetails.current;
+    if (viewId === 'hadiyaMenuSchedule' && cur) {
+        function setDL(id, iso) {
+            if (!iso) return;
+            var d = new Date(iso);
+            if (!isNaN(d.getTime())) {
+                var y = d.getFullYear(), mo = String(d.getMonth()+1).padStart(2,'0'), da = String(d.getDate()).padStart(2,'0');
+                var h = String(d.getHours()).padStart(2,'0'), mi = String(d.getMinutes()).padStart(2,'0');
+                document.getElementById(id).value = y + '-' + mo + '-' + da + 'T' + h + ':' + mi;
+            }
+        }
+        setDL('hadiyaDeadlineInput', cur.deadlineISO);
+        setDL('hadiyaNextStartInput', cur.nextStartISO);
+    }
+    if (viewId === 'hadiyaMenuStatus' && cur) {
+        var isCompleted = cur.status === 'Completed';
+        document.getElementById('hadiyaStatusCompleteBtn').disabled = isCompleted;
+        document.getElementById('hadiyaStatusCompleteBtn').style.opacity = isCompleted ? '0.4' : '1';
+        document.getElementById('hadiyaStatusCompleteBtn').style.cursor = isCompleted ? 'not-allowed' : 'pointer';
+        document.getElementById('hadiyaStatusProgressBtn').disabled = !isCompleted;
+        document.getElementById('hadiyaStatusProgressBtn').style.opacity = !isCompleted ? '0.4' : '1';
+        document.getElementById('hadiyaStatusProgressBtn').style.cursor = !isCompleted ? 'not-allowed' : 'pointer';
+    }
+    document.getElementById('hadiyaMenuMain').style.display = 'none';
+    document.getElementById('hadiyaMenuSchedule').style.display = 'none';
+    document.getElementById('hadiyaMenuStatus').style.display = 'none';
+    document.getElementById(viewId).style.display = 'block';
+    hadiyaMenuNavStack.push('hadiyaMenuMain');
+}
+function goBackHadiyaMenu() {
+    if (hadiyaMenuNavStack.length === 0) {
+        closeHadiyaMenuModal();
+        return;
+    }
+    var prev = hadiyaMenuNavStack.pop();
+    document.getElementById('hadiyaMenuMain').style.display = 'none';
+    document.getElementById('hadiyaMenuSchedule').style.display = 'none';
+    document.getElementById('hadiyaMenuStatus').style.display = 'none';
+    document.getElementById(prev).style.display = 'block';
+}
 function submitHadiyaEditComplete() {
     closeHadiyaEditModal();
     updateHadiyaStatusUI('Completed');
@@ -96,7 +165,6 @@ function openHadiyaEditDedication() {
     setTimeout(function() { openDedicationModal(); }, 200);
 }
 function saveHadiyaScheduleTimes() {
-    if (!isCurrentUserAdmin()) { showSnackbar("Only admins can edit Hadiya schedule.", true); return; }
     function getDL(id) { var v = document.getElementById(id).value; return v ? new Date(v).toISOString() : ''; }
     var deadlineStr = getDL('hadiyaDeadlineInput');
     var nextStr = getDL('hadiyaNextStartInput');
@@ -142,19 +210,25 @@ function goToCurrentWeek() {
     input.dispatchEvent(new Event('change'));
 }
 
+function hideHadiya() {
+    document.getElementById('hadiyaBox').style.display = "none";
+    document.getElementById('hadiyaMenuBar').style.display = "none";
+    var shareBtn = document.getElementById('hadiyaShareBtn');
+    if (shareBtn) { shareBtn.style.display = 'none'; }
+}
+
 function displayHadiya(res) {
     var hadiyaBox = document.getElementById('hadiyaBox');
     hadiyaBox.classList.remove('hadiya-loading');
     hadiyaBox.classList.remove('current-week', 'past-week', 'past-week-completed', 'future-week');
     
     if (!res || !res.current) {
-        hadiyaBox.style.display = "none";
+        hideHadiya();
         currentHadiyaDetails = null;
-        var shareBtn = document.getElementById('hadiyaShareBtn');
-        if (shareBtn) { shareBtn.style.display = 'none'; }
         return;
     }
     hadiyaBox.style.display = "block";
+    document.getElementById('hadiyaMenuBar').style.display = "block";
     currentHadiyaDetails = res;
     
     var cur = res.current;
@@ -194,7 +268,6 @@ function displayHadiya(res) {
             ${cur.range}
             <a href="#" class="hadiya-nav-arrow" onclick="event.preventDefault(); navigateHadiya(1);" style="color:${accentColor};">&gt;</a>
         </div>
-        <a href="#" id="hadiyaEditBtn" class="hadiya-edit-btn" onclick="event.preventDefault(); openHadiyaEditModal();" style="color:${accentColor};${isCurrentUserAdmin() ? '' : 'display:none;'}">Edit / மாற்ற</a>
     </div>`;
 
     var hasDedication = cur.dedicatedTo && cur.dedicatedTo !== cur.en;
@@ -319,9 +392,7 @@ function displayHadiya(res) {
 
     var shareBtn = document.getElementById('hadiyaShareBtn');
     if (shareBtn) {
-        if (!isCurrentUserAdmin()) {
-            shareBtn.style.display = 'none';
-        } else if (isCompleted) {
+        if (isCompleted) {
             shareBtn.style.display = 'block';
             shareBtn.disabled = false;
             shareBtn.style.opacity = '1';
@@ -336,7 +407,6 @@ function displayHadiya(res) {
 }
 
 function updateHadiyaStatusUI(newStatus) {
-    if (!isCurrentUserAdmin()) { showSnackbar("Only admins can update Hadiya status.", true); return; }
     const dateVal = document.getElementById('dateInput').value;
     if (!dateVal) return;
     window.appApi.withSuccessHandler(function(r) {
@@ -353,7 +423,6 @@ var dedicationEntries = [];
 var isEditingDedication = false;
 
 function openDedicationModal() {
-    if (!isCurrentUserAdmin()) { showSnackbar("Only admins can manage dedications.", true); return; }
     document.getElementById('dedicationModal').style.display = "flex";
     dedicationEntries = [];
     isEditingDedication = false;
@@ -645,7 +714,6 @@ function closeDedicationModal() {
 }
 
 function saveDedication() {
-    if (!isCurrentUserAdmin()) { showSnackbar("Only admins can save dedications.", true); return; }
     var dateVal = document.getElementById('dateInput').value;
     if (!dateVal) { showSnackbar("Select a date first.", true); return; }
     if (!isEditingDedication) { showSnackbar("Click 'Edit' first to modify dedications.", true); return; }

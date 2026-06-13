@@ -24,34 +24,26 @@
 
 <div class="container">
 
-    <div id="authBar" style="padding:10px 0; border-bottom:1px solid #30363d; margin-bottom:16px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
-        <div id="loginForm" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-            <input type="email" id="loginEmail" placeholder="Email / மின்னஞ்சல்" style="background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#e6edf3;padding:8px 12px;font-size:0.85rem;font-family:inherit;width:180px;max-width:40vw;">
-            <input type="password" id="loginPassword" placeholder="Password / கடவுச்சொல்" style="background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#e6edf3;padding:8px 12px;font-size:0.85rem;font-family:inherit;width:160px;max-width:35vw;">
-            <button id="loginBtn" onclick="doLogin()" style="background:#1f6feb;border:none;border-radius:6px;color:#fff;padding:8px 16px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">Sign In / உள்நுழை</button>
-        </div>
-        <div id="userInfo" style="display:none; align-items:center; gap:10px; flex-wrap:wrap;">
-            <span id="userDisplayName" style="color:#e6edf3; font-weight:600; font-size:0.9rem;"></span>
-            <span id="userRoleBadge" style="font-size:0.7rem; padding:2px 8px; border-radius:10px; background:#1c2128; border:1px solid #30363d; color:#8b949e;"></span>
-            <button onclick="doLogout()" style="background:transparent;border:1px solid #30363d;border-radius:6px;color:#c9d1d9;padding:6px 14px;font-size:0.8rem;cursor:pointer;font-family:inherit;">Sign Out / வெளியேறு</button>
-        </div>
-    </div>
-
     <div class="hadiya-container" id="hadiyaBox" style="display:none;">
+        <div style="display:none;position:absolute;top:18px;right:18px;" id="hadiyaMenuBar"><button id="hadiyaMenuBtn" onclick="openHadiyaMenuModal()" style="background:none;border:none;color:#c9d1d9;font-size:1.4rem;cursor:pointer;padding:0;line-height:1;">☰</button></div>
         <span class="hadiya-title">This Week's Hadiya <br> இந்த வார ஹதியா</span>
         <div id="hadCurrent" class="hadiya-main">Loading...</div>
         
-        <button id="hadiyaShareBtn" class="btn-hadiya-share" onclick="copyHadiyaNoteToClipboard()" style="margin-top:8px; width:100%; padding:10px; font-size:0.85rem;" data-role="admin">
+        <button id="hadiyaShareBtn" class="btn-hadiya-share" onclick="copyHadiyaNoteToClipboard()" style="margin-top:8px; width:100%; padding:10px; font-size:0.85rem;">
             Hadiya Note 📋
         </button>
         
         <div class="hadiya-grid">
             <div class="small-hadiya" id="prevSection" style="display:none;">
-                <span class="hadiya-title" style="font-size:0.65rem">Previous Hadiya <br> கடந்த ஹதியா</span>
+                <a href="#" onclick="event.preventDefault(); navigateHadiya(-1);" style="text-decoration:none;display:block;">
+                    <span class="hadiya-title" style="font-size:0.65rem;cursor:pointer;">Previous Hadiya <br> கடந்த ஹதியா</span>
+                </a>
                 <div id="hadPrev"></div>
             </div>
             <div class="small-hadiya" id="nextSection">
-                <span class="hadiya-title" style="font-size:0.65rem">Next Hadiya <br> அடுத்த ஹதியா</span>
+                <a href="#" onclick="event.preventDefault(); navigateHadiya(1);" style="text-decoration:none;display:block;">
+                    <span class="hadiya-title" style="font-size:0.65rem;cursor:pointer;">Next Hadiya <br> அடுத்த ஹதியா</span>
+                </a>
                 <div id="hadNext"></div>
             </div>
         </div>
@@ -79,16 +71,12 @@
         View Weekly Report <br> வாராந்திர அறிக்கை
     </button>
 
-    <button id="manageMembersBtn" class="btn-secondary" onclick="openMemberManager()" style="margin-top:8px; width:100%;" data-role="admin">
-        Manage Members <br> உறுப்பினர்கள்
-    </button>
-    
     <div id="loader">Fetching data...</div>
 
     <div id="result">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <div id="weekInfo" class="juz-badge"></div>
-            <span onclick="closeResult()" style="cursor:pointer; color:#8b949e; font-size:1.4rem; line-height:1;">&times;</span>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <div id="weekInfo" class="juz-badge" style="margin-bottom:0;"></div>
+            <span onclick="closeResult()" style="cursor:pointer; color:#8b949e; font-size:1.6rem; font-weight:700; line-height:1; padding:4px 8px; border-radius:4px; user-select:none;">&times;</span>
         </div>
         
         <div class="data-row">
@@ -110,8 +98,8 @@
             <div class="status-header">
                 <h3>Status <br> நிலை</h3>
                 <div>
-                    <button class="btn-unlock" id="unlockBtn" onclick="enableStatusEditing()" data-role="admin">Edit</button>
-                    <button class="btn-close-edit" id="closeEditBtn" onclick="cancelStatusEditing()" data-role="admin">Close / ரத்து செய்</button>
+                    <button class="btn-unlock" id="unlockBtn" onclick="enableStatusEditing()">Edit</button>
+                    <button class="btn-close-edit" id="closeEditBtn" onclick="cancelStatusEditing()">Close / ரத்து செய்</button>
                 </div>
             </div>
             
@@ -121,8 +109,8 @@
                 <div class="support-header-row">
                     <div id="supportDetailsBanner"></div>
                     <div>
-                        <button class="btn-unlock-support" id="unlockSupportBtn" onclick="enableSupportStatusEditing()" data-role="admin">Edit Support</button>
-                        <button class="btn-close-support-edit" id="closeSupportEditBtn" onclick="cancelSupportStatusEditing()" data-role="admin">Close / ரத்து செய்</button>
+                        <button class="btn-unlock-support" id="unlockSupportBtn" onclick="enableSupportStatusEditing()">Edit Support</button>
+                        <button class="btn-close-support-edit" id="closeSupportEditBtn" onclick="cancelSupportStatusEditing()">Close / ரத்து செய்</button>
                     </div>
                 </div>
 
@@ -133,7 +121,7 @@
                     <input type="datetime-local" id="supportCustomTime">
                     <button class="time-reset-btn" onclick="resetCustomTime('support')">Now / இப்போது</button>
                 </div>
-                <div class="support-buttons-grid" id="supportButtonsGroup" style="display: none;" data-role="admin">
+                <div class="support-buttons-grid" id="supportButtonsGroup" style="display: none;">
                     <button class="btn-support-status-completed" id="supportCompletedBtn" onclick="submitSupportStatusDirect('Completed')">
                         Completed ✅
                     </button>
@@ -153,7 +141,7 @@
                 <span id="supportAssignmentDetails" style="color:#c9d1d9;"></span>
                 <span id="supportAssignmentStatusIcon" style="margin-left:4px;"></span>
                 <span>&nbsp;|&nbsp;</span>
-                <a href="#" onclick="openSupportAssignmentModal(); return false;" style="color:#58a6ff; font-weight:600;">Update / மாற்ற</a>
+                <a href="#" onclick="openSupportAssignmentModal(); return false;" style="color:#58a6ff;font-weight:600;text-decoration:underline;">Update / மாற்ற</a>
             </div>
 
 
@@ -164,7 +152,7 @@
                 <input type="datetime-local" id="mainCustomTime">
                 <button class="time-reset-btn" onclick="resetCustomTime('main')">Now / இப்போது</button>
             </div>
-            <div class="status-buttons-container" id="statusButtonsGroup" style="display: none;" data-role="admin">
+            <div class="status-buttons-container" id="statusButtonsGroup" style="display: none;">
                 <button class="btn-status-completed" id="completedActionBtn" onclick="submitDirectStatus('Completed')">
                     Completed <br> நிறைவேற்றபட்டது ✓
                 </button>
@@ -219,7 +207,8 @@
                                 <div style="display:flex;justify-content:space-between;align-items:center;gap:4px;flex-wrap:wrap;max-width:100%;">
                                     <span style="font-size:0.8rem;font-weight:700;color:#c9b896;">Week / வாரம் : <span id="reportWeekLabel"></span></span>
                                     <span class="report-count-badge" id="reportCountBadge">Count / எண்ணிக்கை - 0</span>
-                                </div>
+    </div>
+</div>
                             </th>
                         </tr>
                         <tr class="report-search-row" style="display:none;">
@@ -254,7 +243,7 @@
     </div>
 </div></div>
 
-<div class="confirm-overlay" id="bulkStep2Overlay" data-role="admin">
+<div class="confirm-overlay" id="bulkStep2Overlay">
     <div class="confirm-box" style="max-width:380px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
             <h3 style="margin:0;color:#79c0ff;font-size:1rem;font-weight:600;">Bulk Update — Step 2</h3>
@@ -282,7 +271,7 @@
     </div>
 </div>
 
-<div class="confirm-overlay" id="bulkConfirmOverlay" data-role="admin">
+<div class="confirm-overlay" id="bulkConfirmOverlay">
     <div class="confirm-box">
         <h3>⚠️ Confirm</h3>
         <div id="bulkConfirmInfo" style="font-size:0.9rem; color:#c9d1d9; margin-bottom:8px;"></div>
@@ -294,7 +283,7 @@
     </div>
 </div>
 
-<div id="reportEditModal" class="modal" data-role="admin">
+<div id="reportEditModal" class="modal">
     <div class="modal-content" style="max-width:360px;">
         <div class="modal-header" style="border-bottom:none; margin-bottom:5px; padding-bottom:0;">
             <span class="modal-title" style="font-size:1rem; color:#79c0ff;">Update Status / நிலை மாற்ற</span>
@@ -318,9 +307,10 @@
     </div>
 </div>
 
-<div id="dedicationModal" class="modal" data-role="admin">
+<div id="dedicationModal" class="modal">
     <div class="modal-content" style="max-width:500px;max-height:80vh;overflow-y:auto;">
         <div class="modal-header" style="border-bottom:none; margin-bottom:5px; padding-bottom:0;">
+            <span class="close-btn" style="position:static;font-size:1.2rem;color:#e6edf3;" onclick="closeDedicationModal(); openHadiyaMenuModal();">←</span>
             <span class="modal-title" style="font-size:1rem; color:#d29922;">🎯 Add Dedication <br> அர்ப்பணிப்பை சேர்க்க</span>
             <span class="close-btn" onclick="closeDedicationModal()">&times;</span>
         </div>
@@ -331,11 +321,76 @@
         <div id="dedicationListContainer"></div>
         
         <button id="saveDedicationBtn" onclick="saveDedication()" style="margin-top:10px; padding:12px; background:#1f6feb; color:#fff; border:none; border-radius:8px; width:100%; font-size:0.9rem; font-weight:600; cursor:pointer; font-family:inherit;">Save Dedication <br> அர்பணிப்புச் சேமி</button>
-        <button class="btn-secondary" style="margin-top:8px; padding:10px;" onclick="closeDedicationModal()">Back ←<br> பின்</button>
     </div>
 </div>
 
-<div id="hadiyaEditModal" class="modal" data-role="admin">
+<div id="hadiyaMenuModal" class="modal">
+    <div class="modal-content" style="max-width:380px;">
+
+        <!-- ─── MAIN MENU ─── -->
+        <div id="hadiyaMenuMain">
+            <div class="modal-header" style="border-bottom:none; margin-bottom:5px; padding-bottom:0;">
+                <span class="modal-title" style="font-size:1rem; color:#c9b896;">☰ Hadiya Menu <br> ஹதியா மெனு</span>
+                <span class="close-btn" onclick="closeHadiyaMenuModal()">&times;</span>
+            </div>
+            <div id="hadiyaMenuDateRange" style="font-size:0.85rem;color:#58a6ff;font-weight:600;margin-bottom:12px;text-align:center;"></div>
+
+            <div style="border:1px solid #30363d;border-radius:8px;padding:12px;margin-bottom:8px;">
+                <div style="font-size:0.75rem;color:#8b949e;margin-bottom:8px;font-weight:600;">Hadiya Settings / ஹதியா அமைப்புகள்</div>
+                <button onclick="openHadiyaMenuView('hadiyaMenuSchedule')" style="width:100%;padding:12px;margin-bottom:6px;background:#1c2128;border:1px solid #30363d;border-radius:8px;color:#e6edf3;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">
+                    ⏱ Schedule Settings<br>நேர அமைப்புகள்
+                </button>
+                <button onclick="closeHadiyaMenuModal(); setTimeout(function(){ openDedicationModal(); },200);" style="width:100%;padding:12px;margin-bottom:6px;background:#1c2128;border:1px solid #30363d;border-radius:8px;color:#e6edf3;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">
+                    🎯 Dedication Settings<br>அர்ப்பணிப்பு அமைப்புகள்
+                </button>
+                <button onclick="openHadiyaMenuView('hadiyaMenuStatus')" style="width:100%;padding:12px;background:#1c2128;border:1px solid #30363d;border-radius:8px;color:#e6edf3;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">
+                    ✅ Hadiya Status Update<br>ஹதியா நிலை புதுப்பிப்பு
+                </button>
+            </div>
+            <button onclick="closeHadiyaMenuModal(); setTimeout(function(){ openMemberManager(); },200);" style="width:100%;padding:14px;background:#1c2128;border:1px solid #30363d;border-radius:8px;color:#e6edf3;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">
+                👥 Manage Members<br>உறுப்பினர்கள் மேலாண்மை
+            </button>
+        </div>
+
+        <!-- ─── SCHEDULE SETTINGS ─── -->
+        <div id="hadiyaMenuSchedule" style="display:none;">
+            <div class="modal-header" style="border-bottom:none; margin-bottom:5px; padding-bottom:0;">
+                <span class="close-btn" style="position:static;font-size:1.2rem;color:#e6edf3;" onclick="goBackHadiyaMenu()">←</span>
+                <span class="modal-title" style="font-size:1rem; color:#c9b896;">Schedule / நேர அமைப்புகள்</span>
+                <span class="close-btn" onclick="closeHadiyaMenuModal()">&times;</span>
+            </div>
+            <div style="font-size:0.75rem;color:#8b949e;margin-bottom:8px;font-weight:600;">Schedule Times / நேர அமைப்புகள்</div>
+            <div id="hadiyaScheduleTimeAlert2" style="font-size:0.75rem;color:#f87171;margin-bottom:6px;"></div>
+            <div style="margin-bottom:8px;">
+                <label style="font-size:0.75rem;color:#c9d1d9;display:block;margin-bottom:4px;">Countdown Deadline</label>
+                <input type="datetime-local" id="hadiyaDeadlineInput" style="width:100%;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#e6edf3;padding:10px;font-size:0.85rem;font-family:inherit;box-sizing:border-box;">
+            </div>
+            <div style="margin-bottom:8px;">
+                <label style="font-size:0.75rem;color:#c9d1d9;display:block;margin-bottom:4px;">Next Hadiya Start</label>
+                <input type="datetime-local" id="hadiyaNextStartInput" style="width:100%;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#e6edf3;padding:10px;font-size:0.85rem;font-family:inherit;box-sizing:border-box;">
+            </div>
+            <button id="hadiyaConfigSaveBtn" onclick="saveHadiyaScheduleTimes()" style="margin-top:4px;width:100%;padding:10px;font-size:0.8rem;background:#1f6feb;border:none;border-radius:8px;color:#fff;font-weight:600;cursor:pointer;font-family:inherit;">Save Schedule Times<br>நேரத்தை சேமிக்க</button>
+        </div>
+
+        <!-- ─── STATUS UPDATE ─── -->
+        <div id="hadiyaMenuStatus" style="display:none;">
+            <div class="modal-header" style="border-bottom:none; margin-bottom:5px; padding-bottom:0;">
+                <span class="close-btn" style="position:static;font-size:1.2rem;color:#e6edf3;" onclick="goBackHadiyaMenu()">←</span>
+                <span class="modal-title" style="font-size:1rem; color:#c9b896;">Status / நிலை</span>
+                <span class="close-btn" onclick="closeHadiyaMenuModal()">&times;</span>
+            </div>
+            <button id="hadiyaStatusCompleteBtn" onclick="closeHadiyaMenuModal(); updateHadiyaStatusUI('Completed');" style="width:100%;padding:14px;margin-bottom:8px;background:#0f3320;border:1px solid #238636;border-radius:8px;color:#3fb950;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">
+                ✅ Mark as Completed<br><span style="font-size:0.7rem;color:#8b949e;font-weight:400;">நிறைவேறியது</span>
+            </button>
+            <button id="hadiyaStatusProgressBtn" onclick="closeHadiyaMenuModal(); updateHadiyaStatusUI('Reciting');" style="width:100%;padding:14px;background:#2d2200;border:1px solid #d29922;border-radius:8px;color:#e3b341;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">
+                🔄 Mark in Progress<br><span style="font-size:0.7rem;color:#8b949e;font-weight:400;">மீண்டும் தொடங்கு</span>
+            </button>
+        </div>
+
+    </div>
+</div>
+
+<div id="hadiyaEditModal" class="modal">
     <div class="modal-content" style="max-width:380px;">
         <div class="modal-header" style="border-bottom:none; margin-bottom:5px; padding-bottom:0;">
             <span class="modal-title" style="font-size:1rem; color:#79c0ff;">Edit Hadiya / ஹதியாவை மாற்ற</span>
@@ -347,19 +402,6 @@
         </div>
         <button class="btn-status-completed status-btn" onclick="submitHadiyaEditComplete()" style="margin-top:0; padding:12px;">✅ Completed <br> நிறைவேறியது</button>
         <button class="btn-status-reciting status-btn" onclick="openHadiyaEditDedication()" style="margin-top:8px; padding:12px;">🎯 Add Dedication <br> அர்ப்பணிப்பை சேர்க்க </button>
-        <hr style="border:none;border-top:1px solid #21262d;margin:12px 0;">
-        <div style="font-size:0.8rem;color:#8b949e;margin-bottom:8px;font-weight:600;">Schedule Times / நேர அமைப்புகள்</div>
-        <div id="hadiyaScheduleTimeAlert" style="font-size:0.75rem;color:#f87171;margin-bottom:6px;"></div>
-        <div style="margin-bottom:8px;">
-            <label style="font-size:0.75rem;color:#c9d1d9;display:block;margin-bottom:4px;">Countdown Deadline</label>
-            <input type="datetime-local" id="hadiyaDeadlineInput" style="width:100%;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#e6edf3;padding:10px;font-size:0.85rem;font-family:inherit;box-sizing:border-box;">
-        </div>
-        <div style="margin-bottom:8px;">
-            <label style="font-size:0.75rem;color:#c9d1d9;display:block;margin-bottom:4px;">Next Hadiya Start</label>
-            <input type="datetime-local" id="hadiyaNextStartInput" style="width:100%;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#e6edf3;padding:10px;font-size:0.85rem;font-family:inherit;box-sizing:border-box;">
-        </div>
-        <button id="hadiyaConfigSaveBtn" onclick="saveHadiyaScheduleTimes()" style="margin-top:4px;width:100%;padding:10px;font-size:0.8rem;background:#1f6feb;border:none;border-radius:8px;color:#fff;font-weight:600;cursor:pointer;font-family:inherit;">Save Schedule Times<br>நேரத்தை சேமிக்க</button>
-        <button class="btn-secondary" style="margin-top:8px; padding:10px;" onclick="closeHadiyaEditModal()">Back ←<br> பின்</button>
     </div>
 </div>
 
@@ -381,7 +423,7 @@
             </select>
         </div>
 
-        <button id="reassignBtn" onclick="submitReassignment()" data-role="admin">
+        <button id="reassignBtn" onclick="submitReassignment()">
             Assign Reciting Partner <br> உதவி வாசகரை நியமி
         </button>
         <button class="btn-secondary" style="margin-top:8px; padding:10px;" onclick="closeReassignModal()">
@@ -410,9 +452,10 @@
     </div>
 </div>
 
-<div id="memberManagerModal" class="modal" data-role="admin">
+<div id="memberManagerModal" class="modal">
     <div class="modal-content" style="max-width:420px;">
         <div class="modal-header" style="border-bottom:none; margin-bottom:5px; padding-bottom:0;">
+            <span class="close-btn" style="position:static;font-size:1.2rem;color:#e6edf3;" onclick="closeMemberManager(); openHadiyaMenuModal();">←</span>
             <span class="modal-title" style="font-size:1rem; color:#79c0ff;">Manage Members / உறுப்பினர்கள்</span>
             <span class="close-btn" onclick="closeMemberManager()" style="font-size:2rem; font-weight:bold; color:#8b949e; cursor:pointer; line-height:1;">&times;</span>
         </div>

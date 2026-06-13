@@ -581,7 +581,7 @@ var result = {
                                                 actionType: statusUpdate === 'Completed' ? 'completed' : statusUpdate === 'Exception Raised' ? 'exception' : 'status_changed',
                                                 timestamp: timestamp
                                             };
-                                            if (typeof EmailService !== 'undefined') {
+                                            if (false && typeof EmailService !== 'undefined') {
                                                 EmailService.sendAdminNotification(emailData);
                                             }
                                         });
@@ -628,10 +628,7 @@ var result = {
                 try {
                     var monday = normalizeToWeekStart(inputDateStr);
                     if (!monday) { if (ok) ok({ success: false, error: 'Invalid date' }); return this; }
-                    var customId = null;
-                    _supabase.from('members').select('custom_id').eq('id', userId).single().then(function(rCid) {
-                        if (!rCid.data) { if (ok) ok({ success: false, error: 'Member not found' }); return; }
-                        customId = rCid.data.custom_id;
+                    var customId = userId;
                     _supabase.from('weekly_status').select('*').eq('week_start', monday).eq('member_id', customId).single().then(function(rGet) {
                         var existing = rGet.data;
                         if (!existing) { if (ok) ok({ success: false, error: 'Record not found' }); return; }
@@ -648,7 +645,7 @@ var result = {
                             if (rUp.error) { if (ok) ok({ success: false, error: rUp.error.message }); return; }
                             
                             // Send email notification if support status is Completed (or changing from Completed)
-                            if (newSupportStatus === 'Completed' || oldSupStatus === 'Completed') {
+                            if (false) { // Email disabled until live
                                 try {
                                     var memberName = existing.member_name || '';
                                     var enName = memberName.split('|')[0].trim() || memberName.trim();
@@ -696,7 +693,6 @@ var result = {
                         });
                     });
                     return this;
-                });
                 } catch(err) { if (ok) ok({ success: false, error: err.toString() }); }
                 return this;
             },
@@ -756,7 +752,7 @@ var result = {
                                             supportReaderTamil: supTaName,
                                             timestamp: timestamp
                                         };
-                                        if (typeof EmailService !== 'undefined') {
+                                        if (false && typeof EmailService !== 'undefined') {
                                             EmailService.sendAdminNotification(emailData);
                                         }
                                     });
@@ -870,45 +866,11 @@ var result = {
                 return this;
             },
             // ----------------------------------------------------------------
-            // signIn - authenticate user by email + password
-            // ----------------------------------------------------------------
-            signIn: function(email, password) {
-                var ok = _ok, err = _err;
-                var pwdHash = simpleHash(password);
-                _supabase.from('members').select('id,email,mobile,system_user_id,role,name_en,name_ta,custom_id').eq('email', email).eq('password', pwdHash).single().then(function(r) {
-                    if (r.error || !r.data) {
-                        if (err) err(r.error || { message: 'Invalid email or password' });
-                        else if (ok) ok(null);
-                        return;
-                    }
-                    setSession(r.data);
-                    if (ok) ok(r.data);
-                });
-                return this;
-            },
-            // ----------------------------------------------------------------
-            // signOut - clear session
-            // ----------------------------------------------------------------
-            signOut: function() {
-                clearSession();
-                var ok = _ok;
-                if (ok) ok({ success: true });
-                return this;
-            },
-            // ----------------------------------------------------------------
-            // getCurrentSession - returns cached session
-            // ----------------------------------------------------------------
-            getCurrentSession: function() {
-                var ok = _ok;
-                if (ok) ok(getSession());
-                return this;
-            },
-            // ----------------------------------------------------------------
             // getAllMembers - for member management (no effective_date filter)
             // ----------------------------------------------------------------
             getAllMembers: function() {
                 var ok = _ok;
-                _supabase.from('members').select('id,custom_id,name_en,name_ta,effective_date,email,mobile,system_user_id,role').order('custom_id', { ascending: true }).then(function(r) {
+                _supabase.from('members').select('id,custom_id,name_en,name_ta,effective_date').order('custom_id', { ascending: true }).then(function(r) {
                     if (r.error) { if (ok) ok([]); return; }
                     if (ok) ok(r.data || []);
                 });
@@ -917,16 +879,11 @@ var result = {
             // ----------------------------------------------------------------
             // addMember
             // ----------------------------------------------------------------
-            addMember: function(nameEn, nameTa, customId, effectiveDate, email, mobile, password, role) {
+            addMember: function(nameEn, nameTa, customId, effectiveDate) {
                 var ok = _ok, err = _err;
-                var sysUserId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'usr_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
-                var pwdHash = password ? simpleHash(password) : null;
                 _supabase.from('members').insert({
                     name_en: nameEn, name_ta: nameTa, custom_id: customId,
-                    effective_date: effectiveDate || null,
-                    email: email || null, mobile: mobile || null,
-                    password: pwdHash, system_user_id: sysUserId,
-                    role: role || 'user'
+                    effective_date: effectiveDate || null
                 }).select('id').single().then(function(r) {
                     if (r.error) { console.error('addMember members err', r.error); if (err) err(r.error); else if (ok) ok({ success: false, error: r.error.message }); return; }
                     if (ok) ok({ success: true, id: r.data.id });
@@ -936,17 +893,13 @@ var result = {
             // ----------------------------------------------------------------
             // updateMember
             // ----------------------------------------------------------------
-            updateMember: function(id, nameEn, nameTa, customId, effectiveDate, email, mobile, role) {
+            updateMember: function(id, nameEn, nameTa, customId, effectiveDate) {
                 var ok = _ok, err = _err;
                 var cutDate = effectiveDate ? effectiveDate.slice(0,10) : new Date().toISOString().slice(0,10);
-                var updateObj = {
+                _supabase.from('members').update({
                     name_en: nameEn, name_ta: nameTa, custom_id: customId,
                     effective_date: effectiveDate || null
-                };
-                if (email !== undefined) updateObj.email = email || null;
-                if (mobile !== undefined) updateObj.mobile = mobile || null;
-                if (role !== undefined) updateObj.role = role || 'user';
-                _supabase.from('members').update(updateObj).eq('id', id).then(function(r) {
+                }).eq('id', id).then(function(r) {
                     if (r.error) { console.error('updateMember members err', r.error); if (err) err(r.error); else if (ok) ok({ success: false, error: r.error.message }); return; }
                     // Update weekly_status for all rows with this custom_id where week_start >= cutDate
                     _supabase.from('weekly_status').update({ member_name: nameEn }).eq('member_id', customId).gte('week_start', cutDate).then(function(r2) {
