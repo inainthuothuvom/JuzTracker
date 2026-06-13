@@ -581,7 +581,7 @@ var result = {
                                                 actionType: statusUpdate === 'Completed' ? 'completed' : statusUpdate === 'Exception Raised' ? 'exception' : 'status_changed',
                                                 timestamp: timestamp
                                             };
-                                            if (typeof EmailService !== 'undefined') {
+                                            if (false && typeof EmailService !== 'undefined') {
                                                 EmailService.sendAdminNotification(emailData);
                                             }
                                         });
@@ -628,10 +628,7 @@ var result = {
                 try {
                     var monday = normalizeToWeekStart(inputDateStr);
                     if (!monday) { if (ok) ok({ success: false, error: 'Invalid date' }); return this; }
-                    var customId = null;
-                    _supabase.from('members').select('custom_id').eq('id', userId).single().then(function(rCid) {
-                        if (!rCid.data) { if (ok) ok({ success: false, error: 'Member not found' }); return; }
-                        customId = rCid.data.custom_id;
+                    var customId = userId;
                     _supabase.from('weekly_status').select('*').eq('week_start', monday).eq('member_id', customId).single().then(function(rGet) {
                         var existing = rGet.data;
                         if (!existing) { if (ok) ok({ success: false, error: 'Record not found' }); return; }
@@ -648,7 +645,7 @@ var result = {
                             if (rUp.error) { if (ok) ok({ success: false, error: rUp.error.message }); return; }
                             
                             // Send email notification if support status is Completed (or changing from Completed)
-                            if (newSupportStatus === 'Completed' || oldSupStatus === 'Completed') {
+                            if (false) { // Email disabled until live
                                 try {
                                     var memberName = existing.member_name || '';
                                     var enName = memberName.split('|')[0].trim() || memberName.trim();
@@ -696,7 +693,6 @@ var result = {
                         });
                     });
                     return this;
-                });
                 } catch(err) { if (ok) ok({ success: false, error: err.toString() }); }
                 return this;
             },
@@ -756,7 +752,7 @@ var result = {
                                             supportReaderTamil: supTaName,
                                             timestamp: timestamp
                                         };
-                                        if (typeof EmailService !== 'undefined') {
+                                        if (false && typeof EmailService !== 'undefined') {
                                             EmailService.sendAdminNotification(emailData);
                                         }
                                     });
@@ -900,7 +896,6 @@ var result = {
             updateMember: function(id, nameEn, nameTa, customId, effectiveDate) {
                 var ok = _ok, err = _err;
                 var cutDate = effectiveDate ? effectiveDate.slice(0,10) : new Date().toISOString().slice(0,10);
-                // Update the member row
                 _supabase.from('members').update({
                     name_en: nameEn, name_ta: nameTa, custom_id: customId,
                     effective_date: effectiveDate || null

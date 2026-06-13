@@ -86,6 +86,76 @@ function openHadiyaEditModal() {
 function closeHadiyaEditModal() {
     document.getElementById('hadiyaEditModal').style.display = 'none';
 }
+
+var hadiyaMenuNavStack = [];
+
+function openHadiyaMenuModal() {
+    hadiyaMenuNavStack = [];
+    var rangeEl = document.getElementById('hadiyaMenuDateRange');
+    if (currentHadiyaDetails && currentHadiyaDetails.current) {
+        var cur = currentHadiyaDetails.current;
+        var dl = cur.deadlineISO;
+        var ns = cur.nextStartISO;
+        var fmt = function(iso) {
+            if (!iso) return '—';
+            var d = new Date(String(iso).trim().replace(' ','T'));
+            if (isNaN(d.getTime())) return iso;
+            var opts = { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' };
+            return d.toLocaleDateString('en-US', opts);
+        };
+        rangeEl.innerText = fmt(dl) + ' — ' + fmt(ns);
+    } else {
+        rangeEl.innerText = 'No active Hadiya';
+    }
+    document.getElementById('hadiyaMenuMain').style.display = 'block';
+    document.getElementById('hadiyaMenuSchedule').style.display = 'none';
+    document.getElementById('hadiyaMenuStatus').style.display = 'none';
+    document.getElementById('hadiyaMenuModal').style.display = 'flex';
+}
+function closeHadiyaMenuModal() {
+    document.getElementById('hadiyaMenuModal').style.display = 'none';
+}
+function openHadiyaMenuView(viewId) {
+    var cur = currentHadiyaDetails && currentHadiyaDetails.current;
+    if (viewId === 'hadiyaMenuSchedule' && cur) {
+        function setDL(id, iso) {
+            if (!iso) return;
+            var d = new Date(iso);
+            if (!isNaN(d.getTime())) {
+                var y = d.getFullYear(), mo = String(d.getMonth()+1).padStart(2,'0'), da = String(d.getDate()).padStart(2,'0');
+                var h = String(d.getHours()).padStart(2,'0'), mi = String(d.getMinutes()).padStart(2,'0');
+                document.getElementById(id).value = y + '-' + mo + '-' + da + 'T' + h + ':' + mi;
+            }
+        }
+        setDL('hadiyaDeadlineInput', cur.deadlineISO);
+        setDL('hadiyaNextStartInput', cur.nextStartISO);
+    }
+    if (viewId === 'hadiyaMenuStatus' && cur) {
+        var isCompleted = cur.status === 'Completed';
+        document.getElementById('hadiyaStatusCompleteBtn').disabled = isCompleted;
+        document.getElementById('hadiyaStatusCompleteBtn').style.opacity = isCompleted ? '0.4' : '1';
+        document.getElementById('hadiyaStatusCompleteBtn').style.cursor = isCompleted ? 'not-allowed' : 'pointer';
+        document.getElementById('hadiyaStatusProgressBtn').disabled = !isCompleted;
+        document.getElementById('hadiyaStatusProgressBtn').style.opacity = !isCompleted ? '0.4' : '1';
+        document.getElementById('hadiyaStatusProgressBtn').style.cursor = !isCompleted ? 'not-allowed' : 'pointer';
+    }
+    document.getElementById('hadiyaMenuMain').style.display = 'none';
+    document.getElementById('hadiyaMenuSchedule').style.display = 'none';
+    document.getElementById('hadiyaMenuStatus').style.display = 'none';
+    document.getElementById(viewId).style.display = 'block';
+    hadiyaMenuNavStack.push('hadiyaMenuMain');
+}
+function goBackHadiyaMenu() {
+    if (hadiyaMenuNavStack.length === 0) {
+        closeHadiyaMenuModal();
+        return;
+    }
+    var prev = hadiyaMenuNavStack.pop();
+    document.getElementById('hadiyaMenuMain').style.display = 'none';
+    document.getElementById('hadiyaMenuSchedule').style.display = 'none';
+    document.getElementById('hadiyaMenuStatus').style.display = 'none';
+    document.getElementById(prev).style.display = 'block';
+}
 function submitHadiyaEditComplete() {
     closeHadiyaEditModal();
     updateHadiyaStatusUI('Completed');
@@ -140,19 +210,25 @@ function goToCurrentWeek() {
     input.dispatchEvent(new Event('change'));
 }
 
+function hideHadiya() {
+    document.getElementById('hadiyaBox').style.display = "none";
+    document.getElementById('hadiyaMenuBar').style.display = "none";
+    var shareBtn = document.getElementById('hadiyaShareBtn');
+    if (shareBtn) { shareBtn.style.display = 'none'; }
+}
+
 function displayHadiya(res) {
     var hadiyaBox = document.getElementById('hadiyaBox');
     hadiyaBox.classList.remove('hadiya-loading');
     hadiyaBox.classList.remove('current-week', 'past-week', 'past-week-completed', 'future-week');
     
     if (!res || !res.current) {
-        hadiyaBox.style.display = "none";
+        hideHadiya();
         currentHadiyaDetails = null;
-        var shareBtn = document.getElementById('hadiyaShareBtn');
-        if (shareBtn) { shareBtn.style.display = 'none'; }
         return;
     }
     hadiyaBox.style.display = "block";
+    document.getElementById('hadiyaMenuBar').style.display = "block";
     currentHadiyaDetails = res;
     
     var cur = res.current;
@@ -192,7 +268,6 @@ function displayHadiya(res) {
             ${cur.range}
             <a href="#" class="hadiya-nav-arrow" onclick="event.preventDefault(); navigateHadiya(1);" style="color:${accentColor};">&gt;</a>
         </div>
-        <a href="#" id="hadiyaEditBtn" class="hadiya-edit-btn" onclick="event.preventDefault(); openHadiyaEditModal();" style="color:${accentColor};">Edit / மாற்ற</a>
     </div>`;
 
     var hasDedication = cur.dedicatedTo && cur.dedicatedTo !== cur.en;
