@@ -30,18 +30,33 @@ let fetchedStateCache = null;
 
 let userListData = [];
 
-window.onload = function() {
-    (function(){var d=new Date();var p=function(n){return String(n).padStart(2,'0')};document.getElementById('dateInput').value=d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());})();
+function refreshUserDropdown(dateVal) {
+    const prevId = document.getElementById('userSelect').value;
     window.appApi.withSuccessHandler(function(users) {
         userListData = users;
         const dropdown = document.getElementById('userDropdown');
         dropdown.innerHTML = users.map(u =>
             `<div class="opt" data-id="${u.id}" onmousedown="selectUserOption('${u.id}','${(u.english + ' | ' + u.tamil).replace(/'/g, "\\'")}')">${u.english} | ${u.tamil}</div>`
         ).join('');
-        const today = document.getElementById('dateInput').value;
-        fetchHadiyaDetails(today);
-    }).getUserList();
+        // Keep previously selected member if still active
+        if (prevId) {
+            var stillExists = users.some(function(u) { return String(u.id) === prevId; });
+            if (!stillExists) {
+                document.getElementById('userSelect').value = '';
+            }
+        }
+    }).withFailureHandler(function(err) {
+        console.error('refreshUserDropdown error:', err);
+        var msg = (err && err.message) ? err.message : (typeof err === 'string' ? err : 'Failed to load users. Is the database missing the effective_date column?');
+        showSnackbar('Error loading users: ' + msg, true);
+    }).getUserList(dateVal);
+}
 
+window.onload = function() {
+    (function(){var now=new Date();var IST_MS=5.5*3600000;var ist=new Date(now.getTime()+now.getTimezoneOffset()*60000+IST_MS);var p=function(n){return String(n).padStart(2,'0')};document.getElementById('dateInput').value=ist.getFullYear()+'-'+p(ist.getMonth()+1)+'-'+p(ist.getDate())+'T'+p(ist.getHours())+':'+p(ist.getMinutes());})();
+    const today = document.getElementById('dateInput').value;
+    refreshUserDropdown(today);
+    fetchHadiyaDetails(today);
     document.getElementById('dateInput').addEventListener('change', resetAssignmentDetails);
 };
 
@@ -55,7 +70,10 @@ function resetAssignmentDetails() {
     const nextHadiyaLockBanner = document.getElementById('nextHadiyaLockBanner');
     if (nextHadiyaLockBanner) nextHadiyaLockBanner.style.display = "none";
     var d = document.getElementById('dateInput').value;
-    if (d) fetchHadiyaDetails(d);
+    if (d) {
+        refreshUserDropdown(d);
+        fetchHadiyaDetails(d);
+    }
 }
 
 function updateStatusBoxColorByValue(val) {
@@ -89,29 +107,28 @@ function isPastNextHadiyaStart() {
     if (!hadiya || !hadiya.current || !hadiya.current.nextStartISO) {
         return false;
     }
-    // Only lock if we're viewing the current week (no todayIndex in client - use currentIndex check)
     if (hadiya.currentIndex !== hadiya.todayIndex) {
         return false;
     }
-    var now = new Date();
+    var selectedVal = document.getElementById('dateInput').value;
+    if (!selectedVal) return false;
+    var selDate = new Date(selectedVal);
+    if (isNaN(selDate.getTime())) return false;
     var IST_OFFSET = 5.5 * 3600000;
-    
-    // Parse nextStartISO - handle both timezone-aware and local times
+    var selectedIST = new Date(selDate.getTime() + selDate.getTimezoneOffset() * 60000 + IST_OFFSET);
+
     var nextStart = new Date(hadiya.current.nextStartISO);
     var s = String(hadiya.current.nextStartISO).trim().replace(' ', 'T');
     var hasTimezone = s.endsWith('Z') || /[\+\-]\d{2}:\d{2}$/.test(s) || /[\+\-]\d{4}$/.test(s);
-    
-    // If no timezone, treat as IST (local time)
+
     if (!hasTimezone && !isNaN(nextStart.getTime())) {
         var p = s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/);
         if (p) {
-            // Build as IST local time
             nextStart = new Date(+p[1], +p[2]-1, +p[3], +p[4], +p[5], +(p[6]||0));
         }
     }
-    
-    var nowIST = new Date(now.getTime() + now.getTimezoneOffset() * 60000 + IST_OFFSET);
-    return nowIST.getTime() >= nextStart.getTime();
+
+    return selectedIST.getTime() >= nextStart.getTime();
 }
 
 function configureStatusEditLock(statusVal, resData) {
@@ -384,8 +401,26 @@ function setCustomTime(area, dateTimeStr) {
 }
 
 function submitQuery() {
-    const id = document.getElementById('userSelect').value;
+    var id = document.getElementById('userSelect').value;
+    if (!id) {
+        var searchVal = document.getElementById('userSearch').value.trim();
+        if (searchVal) {
+            var match = userListData.find(function(x) { return (x.english + ' | ' + x.tamil).toLowerCase().includes(searchVal.toLowerCase()); });
+            if (match) {
+                id = match.id;
+                document.getElementById('userSelect').value = id;
+            }
+        }
+    }
+    if (!id) {
+        showSnackbar("Please select a member first.", true);
+        document.getElementById('submitBtn').disabled = false;
+        document.getElementById('loader').style.display = 'none';
+        return;
+    }
     const date = document.getElementById('dateInput').value;
+    var curMember = userListData.find(function(x) { return String(x.id) === id; });
+    var cid = curMember ? curMember.custom_id : null;
     const btn = document.getElementById('submitBtn');
     const loader = document.getElementById('loader');
     const resDiv = document.getElementById('result');
@@ -442,12 +477,13 @@ function submitQuery() {
             }
         }
         resDiv.style.display = "block";
+        resDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }).withFailureHandler(function(err) {
         btn.disabled = false;
         loader.style.display = "none";
         resDiv.innerHTML = '<div class="error">Error: ' + (err.message || 'Unknown error') + '</div>';
         resDiv.style.display = "block";
-    }).findJuzAssignment(id, date);
+    }).findJuzAssignment(id, cid, date);
 }
 
 function submitDirectStatus(statusVal) {
@@ -684,4 +720,142 @@ function openReassignFromReport(userId, juzNum, rawName) {
     currentActiveUserId = userId;
     currentActiveJuzNumber = juzNum;
     openReassignModal();
+}
+
+// ----------------------------------------------------------------
+// Member Management
+// ----------------------------------------------------------------
+var memberListData = [];
+
+function openMemberManager() {
+    document.getElementById('memberManagerModal').style.display = 'flex';
+    document.getElementById('memberFormFields').style.display = 'none';
+    document.getElementById('memberSelectId').value = '';
+    document.getElementById('memberSearch').value = '';
+    document.getElementById('memberDropdown').innerHTML = '';
+    loadMemberDropdown();
+}
+function closeMemberManager() {
+    document.getElementById('memberManagerModal').style.display = 'none';
+}
+function loadMemberDropdown() {
+    window.appApi.withSuccessHandler(function(members) {
+        memberListData = members;
+    }).getAllMembers();
+}
+function openMemberDropdown() {
+    var q = document.getElementById('memberSearch').value.toLowerCase();
+    var dropdown = document.getElementById('memberDropdown');
+    var filtered = memberListData.filter(function(u) {
+        return (u.name_en + ' | ' + u.name_ta).toLowerCase().includes(q);
+    });
+    if (filtered.length === 0) {
+        dropdown.innerHTML = '<div class="opt no-match">No matches / பொருந்தவில்லை</div>';
+    } else {
+        dropdown.innerHTML = filtered.map(function(u) {
+            var display = (u.name_en || '') + ' | ' + (u.name_ta || '');
+            return '<div class="opt" data-id="' + u.id + '" onmousedown="selectMemberOption(\'' + u.id + '\',\'' + display.replace(/'/g, "\\'") + '\')">' + display + '</div>';
+        }).join('');
+    }
+    dropdown.style.display = 'block';
+}
+function closeMemberDropdown() {
+    document.getElementById('memberDropdown').style.display = 'none';
+}
+function filterMemberOptions() {
+    openMemberDropdown();
+}
+function selectMemberOption(id, displayName) {
+    document.getElementById('memberSearch').value = displayName;
+    document.getElementById('memberSelectId').value = id;
+    document.getElementById('memberDropdown').style.display = 'none';
+    var m = memberListData.find(function(x) { return String(x.id) === String(id); });
+    if (m) {
+        document.getElementById('memberFormEditId').value = m.id;
+        document.getElementById('memberFormNameEn').value = m.name_en || '';
+        document.getElementById('memberFormNameTa').value = m.name_ta || '';
+        document.getElementById('memberFormEffDate').value = (m.effective_date || '').slice(0, 16);
+        document.getElementById('replaceSection').style.display = 'none';
+        document.getElementById('memberFormFields').style.display = 'block';
+    }
+}
+function resetMemberForm() {
+    document.getElementById('memberFormEditId').value = '';
+    document.getElementById('memberFormNameEn').value = '';
+    document.getElementById('memberFormNameTa').value = '';
+    document.getElementById('memberFormEffDate').value = '';
+    document.getElementById('replaceSearch').value = '';
+    document.getElementById('replaceSelectId').value = '';
+    document.getElementById('replaceSection').style.display = 'block';
+    document.getElementById('memberFormFields').style.display = 'block';
+}
+function cancelMemberForm() {
+    document.getElementById('memberFormFields').style.display = 'none';
+}
+function openReplaceDropdown() {
+    var q = document.getElementById('replaceSearch').value.toLowerCase();
+    var dropdown = document.getElementById('replaceDropdown');
+    var filtered = memberListData.filter(function(u) {
+        return (u.name_en + ' | ' + u.name_ta).toLowerCase().includes(q);
+    });
+    if (filtered.length === 0) {
+        dropdown.innerHTML = '<div class="opt no-match">No matches / பொருந்தவில்லை</div>';
+    } else {
+        dropdown.innerHTML = filtered.map(function(u) {
+            var display = (u.name_en || '') + ' | ' + (u.name_ta || '');
+            return '<div class="opt" data-id="' + u.id + '" onmousedown="selectReplaceOption(\'' + u.id + '\',\'' + display.replace(/'/g, "\\'") + '\')">' + display + '</div>';
+        }).join('');
+    }
+    dropdown.style.display = 'block';
+}
+function closeReplaceDropdown() {
+    document.getElementById('replaceDropdown').style.display = 'none';
+}
+function filterReplaceOptions() {
+    openReplaceDropdown();
+}
+function selectReplaceOption(id, displayName) {
+    document.getElementById('replaceSearch').value = displayName;
+    document.getElementById('replaceSelectId').value = id;
+    document.getElementById('replaceDropdown').style.display = 'none';
+}
+function saveMember() {
+    var editId = document.getElementById('memberFormEditId').value;
+    var nameEn = document.getElementById('memberFormNameEn').value.trim();
+    var nameTa = document.getElementById('memberFormNameTa').value.trim();
+    var effDateRaw = document.getElementById('memberFormEffDate').value;
+    var effDate = effDateRaw ? effDateRaw + ':00' : null;
+    if (!nameEn) {
+        showSnackbar("Name (English) is required.", true);
+        return;
+    }
+    if (editId) {
+        // Update existing: keep current custom_id
+        var cur = memberListData.find(function(x) { return String(x.id) === String(editId); });
+        var cid = cur ? cur.custom_id : 1;
+        window.appApi.withSuccessHandler(function(r) {
+            if (r.success) { showSnackbar("Member updated!", false); loadMemberDropdown(); cancelMemberForm(); }
+            else showSnackbar("Error: " + (r.error || 'unknown'), true);
+        }).withFailureHandler(function(e) {
+            showSnackbar("Update failed: " + (e.message || e || 'unknown'), true);
+        }).updateMember(editId, nameEn, nameTa, cid, effDate);
+    } else {
+        // New member: add new row with same custom_id as replaced member
+        var replaceId = document.getElementById('replaceSelectId').value;
+        if (!replaceId) {
+            showSnackbar("Please select who you are replacing.", true);
+            return;
+        }
+        var replaced = memberListData.find(function(x) { return String(x.id) === String(replaceId); });
+        if (!replaced) {
+            showSnackbar("Replaced member not found.", true);
+            return;
+        }
+        window.appApi.withSuccessHandler(function(r) {
+            if (r.success) { showSnackbar("Member added!", false); loadMemberDropdown(); cancelMemberForm(); }
+            else showSnackbar("Error: " + (r.error || 'unknown'), true);
+        }).withFailureHandler(function(e) {
+            showSnackbar("Add failed: " + (e.message || e || 'unknown'), true);
+        }).addMember(nameEn, nameTa, replaced.custom_id, effDate);
+    }
 }

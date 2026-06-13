@@ -1,11 +1,19 @@
 function fetchHadiyaDetails(dateVal) {
     window.appApi
         .withSuccessHandler(function(res) {
-            displayHadiya(res);
+            try {
+                displayHadiya(res);
+            } catch(e) {
+                console.error('displayHadiya error:', e);
+                document.getElementById('hadiyaBox').classList.remove('hadiya-loading');
+                showSnackbar("Error rendering Hadiya: " + e.message, true);
+            }
         })
         .withFailureHandler(function(err) {
             document.getElementById('hadiyaBox').classList.remove('hadiya-loading');
-            showSnackbar("Error loading Hadiya data", true);
+            var msg = (err && err.message) ? err.message : (typeof err === 'string' ? err : 'Unknown error');
+            console.error('getHadiyaDetails failed:', err);
+            showSnackbar("Error loading Hadiya: " + msg, true);
         })
         .getHadiyaDetails(dateVal);
 }
@@ -73,9 +81,6 @@ function openHadiyaEditModal() {
     setDL('hadiyaDeadlineInput', cur.deadlineISO);
     setDL('hadiyaNextStartInput', cur.nextStartISO);
 
-    var isPast = cur.deadlineISO ? new Date() >= new Date(cur.deadlineISO) : false;
-    var alertEl = document.getElementById('hadiyaScheduleTimeAlert');
-    alertEl.innerHTML = isPast ? '⚠️ This week is in the past.' : '';
     document.getElementById('hadiyaEditModal').style.display = 'flex';
 }
 function closeHadiyaEditModal() {
@@ -111,18 +116,27 @@ function saveHadiyaScheduleTimes() {
 
 function navigateHadiya(dir) {
     var input = document.getElementById('dateInput');
-    var d = new Date(input.value || new Date());
+    var val = input.value || new Date().toISOString().slice(0,16);
+    var datePart = val.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    var timePart = val.match(/T(\d{2}:\d{2})/);
+    var d = datePart ? new Date(+datePart[1], +datePart[2]-1, +datePart[3]) : new Date();
     d.setDate(d.getDate() + dir * 7);
     var p = function(n) { return String(n).padStart(2,'0'); };
-    input.value = d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate());
+    var t = timePart ? timePart[1] : '00:00';
+    input.value = d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate()) + 'T' + t;
     input.dispatchEvent(new Event('change'));
 }
 
 function goToCurrentWeek() {
     var input = document.getElementById('dateInput');
-    var d = new Date();
+    var oldVal = input.value || '';
+    var timePart = oldVal.match(/T(\d{2}:\d{2})/);
+    var now = new Date();
+    var IST_MS = 5.5 * 3600000;
+    var ist = new Date(now.getTime() + now.getTimezoneOffset() * 60000 + IST_MS);
     var p = function(n) { return String(n).padStart(2,'0'); };
-    input.value = d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate());
+    var t = timePart ? timePart[1] : p(ist.getHours()) + ':' + p(ist.getMinutes());
+    input.value = ist.getFullYear() + '-' + p(ist.getMonth()+1) + '-' + p(ist.getDate()) + 'T' + t;
     input.dispatchEvent(new Event('change'));
 }
 

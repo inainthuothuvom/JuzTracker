@@ -43,6 +43,40 @@
         var day = String(d.getDate()).padStart(2, '0');
         return y + '-' + m + '-' + day;
     }
+    function dateFromDateLocal(val) {
+        if (!val) return '';
+        var m = String(val).match(/^(\d{4}-\d{2}-\d{2})/);
+        return m ? m[1] : val;
+    }
+    function filterActiveMembers(members, selectedDate) {
+        if (!members || !members.length) return [];
+        var selStr = (selectedDate || '').slice(0,10);
+        // Group by custom_id
+        var seqMap = {};
+        members.forEach(function(m) {
+            var seq = m.custom_id || 0;
+            if (!seqMap[seq]) seqMap[seq] = [];
+            seqMap[seq].push(m);
+        });
+        var result = [];
+        Object.keys(seqMap).forEach(function(seq) {
+            var group = seqMap[seq];
+            var best = null;
+            group.forEach(function(m) {
+                var eff = m.effective_date;
+                if (!eff) {
+                    if (!best || best.effective_date) best = m;
+                } else {
+                    var effStr = eff.slice(0,10);
+                    if (effStr <= selStr && (!best || !best.effective_date || best.effective_date.slice(0,10) < effStr)) {
+                        best = m;
+                    }
+                }
+            });
+            if (best) result.push(best);
+        });
+        return result;
+    }
 
 function showSnackbar(message, isError) {
     const snack = document.getElementById('toastSnackbar');

@@ -7,12 +7,14 @@
             // ----------------------------------------------------------------
             // getUserList
             // ----------------------------------------------------------------
-            getUserList: function() {
+            getUserList: function(selectedDate) {
                 var self = this;
-                _supabase.from('members').select('id,name_en,name_ta').order('sequence', { ascending: true }).then(function(r) {
-                    if (r.error) { if (_err) _err(r.error); else console.error(r.error); return; }
-                    var out = r.data.map(function(u) { return { id: u.id, arabic: '', english: u.name_en||'', tamil: u.name_ta||'' }; });
-                    if (_ok) _ok(out);
+                var ok = _ok, err = _err;
+                _supabase.from('members').select('id,custom_id,name_en,name_ta,effective_date').order('custom_id', { ascending: true }).then(function(r) {
+                    if (r.error) { if (err) err(r.error); else console.error(r.error); return; }
+                    var active = selectedDate ? filterActiveMembers(r.data, selectedDate) : r.data;
+                    var out = active.map(function(u) { return { id: u.id, arabic: '', english: u.name_en||'', tamil: u.name_ta||'', effective_date: u.effective_date||null }; });
+                    if (ok) ok(out);
                 });
                 return this;
             },
@@ -21,39 +23,44 @@
             // ----------------------------------------------------------------
             lookupTamilName: function(userId) {
                 var self = this;
+                var ok = _ok;
                 _supabase.from('members').select('name_ta').eq('id', userId).single().then(function(r) {
-                    if (_ok) _ok((r.data && r.data.name_ta) || '');
+                    if (ok) ok((r.data && r.data.name_ta) || '');
                 });
                 return this;
             },
             // ----------------------------------------------------------------
             // lookupJuzFromSchedule
             // ----------------------------------------------------------------
-            lookupJuzFromSchedule: function(userId, targetDate) {
+            lookupJuzFromSchedule: function(customId, targetDate) {
                 var self = this;
+                var ok = _ok;
                 var d = new Date(targetDate); d.setHours(0,0,0,0,0);
-                _supabase.from('weekly_status').select('juz_number').eq('member_id', userId).lte('week_start', formatLocalDate(d)).order('week_start', { ascending: false }).limit(1).then(function(r) {
-                    if (_ok) _ok((r.data && r.data[0]) ? String(r.data[0].juz_number) : '');
+                _supabase.from('weekly_status').select('juz_number').eq('member_id', customId).lte('week_start', formatLocalDate(d)).order('week_start', { ascending: false }).limit(1).then(function(r) {
+                    if (ok) ok((r.data && r.data[0]) ? String(r.data[0].juz_number) : '');
                 });
                 return this;
             },
             // ----------------------------------------------------------------
             // getAvailableSupportUsers
             // ----------------------------------------------------------------
-            getAvailableSupportUsers: function(selectedDate, excludeUserId) {
+            getAvailableSupportUsers: function(selectedDate, excludeCustomId) {
                 var self = this;
+                var ok = _ok;
                 var norm = normalizeToWeekStart(selectedDate);
                 // Get all users who have an exception this week
                 _supabase.from('weekly_status').select('member_id').eq('week_start', norm).eq('status', 'Exception Raised').then(function(rExc) {
                     var excIds = {};
                     if (rExc.data) rExc.data.forEach(function(x) { excIds[x.member_id] = true; });
                     // Get all non-exception users from members
-                    _supabase.from('members').select('id,name_en,name_ta').order('sequence', { ascending: true }).then(function(rCfg) {
+                    _supabase.from('members').select('id,custom_id,name_en,name_ta,effective_date').order('custom_id', { ascending: true }).then(function(rCfg) {
+                        if (!rCfg.data) { if (ok) ok([]); return; }
+                        var active = filterActiveMembers(rCfg.data, selectedDate);
                         var out = [];
-                        if (rCfg.data) rCfg.data.forEach(function(u) {
-                            if (u.id !== excludeUserId && !excIds[u.id]) out.push({ id: u.id, english: u.name_en||'', tamil: u.name_ta||'' });
+                        active.forEach(function(u) {
+                            if (u.custom_id !== excludeCustomId && !excIds[u.custom_id]) out.push({ id: u.id, custom_id: u.custom_id, english: u.name_en||'', tamil: u.name_ta||'' });
                         });
-                        if (_ok) _ok(out);
+                        if (ok) ok(out);
                     });
                 });
                 return this;
@@ -61,17 +68,18 @@
             // ----------------------------------------------------------------
             // findJuzAssignment
             // ----------------------------------------------------------------
-            findJuzAssignment: function(userId, selectedDate) {
+            findJuzAssignment: function(userId, customId, selectedDate) {
                 var self = this;
-                var inputDate = new Date(selectedDate); inputDate.setHours(0,0,0,0,0);
-                
-                // Apply Friday cutoff logic - if today is Friday before next hadiya start, use previous week
-                var now = new Date();
-                var IST_MS = 5.5 * 3600000;
-                var istNow = new Date(now.getTime() + now.getTimezoneOffset() * 60000 + IST_MS);
-                var nowStr = formatLocalDate(istNow);
-                var isToday = selectedDate === nowStr;
-                
+                var ok = _ok;
+                function run(cid) {
+                // Extract date-only portion from datetime-local value
+                var dateOnly = dateFromDateLocal(selectedDate);
+                var inputDate = new Date(dateOnly); inputDate.setHours(0,0,0,0,0);
+
+                // Parse selected datetime for cutoff comparison
+                var selParts = selectedDate.match(/^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})/);
+                var selectedDT = selParts ? new Date(+selParts[1], +selParts[2]-1, +selParts[3], +selParts[4], +selParts[5]) : null;
+
                 function fridayOf(dateStr) {
                     var m = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})/);
                     var d = m ? new Date(+m[1], +m[2]-1, +m[3]) : new Date(dateStr);
@@ -82,12 +90,12 @@
                     var f = new Date(d); f.setDate(d.getDate() - diff);
                     return formatLocalDate(f);
                 }
-                
-                var todayFriday = fridayOf(nowStr);
-                var prevFridayDate = new Date(todayFriday + 'T00:00:00');
+
+                var selectedFriday = fridayOf(dateOnly);
+                var prevFridayDate = new Date(selectedFriday + 'T00:00:00');
                 prevFridayDate.setDate(prevFridayDate.getDate() - 7);
                 var prevFriday = formatLocalDate(prevFridayDate);
-                
+
                 // Query the previous week's next_hadiya_start_moment for cutoff
                 _supabase.from('hadiya_details').select('next_hadiya_start_moment').eq('start_date', prevFriday).limit(1).then(function(rH) {
                     var cutoffTime = null;
@@ -108,28 +116,23 @@
                         }
                         if (!isNaN(d.getTime())) cutoffTime = d;
                     }
-                    
-                    var isBeforeNextStart = cutoffTime && istNow.getTime() < cutoffTime.getTime();
-                    
-                    // Adjust inputDate if before cutoff and today is Friday
+
+                    var isBeforeNextStart = cutoffTime && selectedDT && selectedDT.getTime() < cutoffTime.getTime();
+
+                    // Adjust inputDate if selected datetime is before cutoff
                     var adjustedInputDate = inputDate;
-                    if (isBeforeNextStart && isToday) {
-                        var inputDay = inputDate.getDay();
-                        if (inputDay === 5) { // Friday
-                            adjustedInputDate = new Date(inputDate);
-                            adjustedInputDate.setDate(adjustedInputDate.getDate() - 7);
-                        }
+                    if (isBeforeNextStart && selectedFriday) {
+                        adjustedInputDate = new Date(inputDate);
+                        adjustedInputDate.setDate(adjustedInputDate.getDate() - 7);
                     }
                     
                     // Find latest weekly_status row before/on adjustedInputDate
-                    _supabase.from('weekly_status').select('week_start,juz_number,member_name,status,completed_date_time,exception_raised_time,supported_by_name,supported_by_id,support_status').eq('member_id', userId).lte('week_start', formatLocalDate(adjustedInputDate)).order('week_start', { ascending: false }).limit(1).then(function(rStat) {
+                     _supabase.from('weekly_status').select('week_start,juz_number,member_name,status,completed_date_time,exception_raised_time,supported_by_name,supported_by_id,support_status').eq('member_id', cid).lte('week_start', formatLocalDate(adjustedInputDate)).order('week_start', { ascending: false }).limit(1).then(function(rStat) {
                     if (!rStat.data || rStat.data.length === 0) {
                         // No weekly_status row found — calculate Juz dynamically
-                        _supabase.from('members').select('sequence').eq('id', userId).single().then(function(rSeq) {
-                            if (!rSeq.data) { if (_ok) _ok({ error: "Member not found." }); return; }
-                            var seq = rSeq.data.sequence;
-                            // Find earliest week_start for this user to determine base week
-                            _supabase.from('weekly_status').select('week_start').eq('member_id', userId).order('week_start', { ascending: true }).limit(1).then(function(rFirst) {
+                        var seq = parseInt(cid.replace(/[^0-9]/g, ''), 10);
+                        // Find earliest week_start for this user to determine base week
+                        _supabase.from('weekly_status').select('week_start').eq('member_id', cid).order('week_start', { ascending: true }).limit(1).then(function(rFirst) {
                                 var baseDate;
                                 if (rFirst.data && rFirst.data.length > 0) {
                                     baseDate = new Date(rFirst.data[0].week_start);
@@ -143,7 +146,7 @@
                                 var dynamicJuz = ((seq - 1 + weekDiff) % 30) + 1;
                                 var juzStr = String(dynamicJuz);
                                 // Look up Juz details
-                                _supabase.from('members').select('juz_ar,juz_en,juz_ta').eq('sequence', parseInt(juzStr)).single().then(function(rJuz) {
+                                _supabase.from('sequences').select('juz_ar,juz_en,juz_ta').eq('sequence', parseInt(juzStr)).single().then(function(rJuz) {
                                     var jDetail = rJuz.data || {};
                                     var monday = normalizeToWeekStart(formatLocalDate(inputDate));
                                     var result = {
@@ -160,15 +163,14 @@
                                         supportedById: '',
                                         supportStatus: ''
                                     };
-                                    if (_ok) _ok(result);
+                                    if (ok) ok(result);
                                 });
                             });
-                        });
                         return;
                     }
                     var st = rStat.data[0]; var assignedJuz = String(st.juz_number);
                     // Look up Juz details from members by sequence
-                    _supabase.from('members').select('juz_ar,juz_en,juz_ta').eq('sequence', parseInt(assignedJuz)).single().then(function(rJuz) {
+                    _supabase.from('sequences').select('juz_ar,juz_en,juz_ta').eq('sequence', parseInt(assignedJuz)).single().then(function(rJuz) {
                         var jDetail = rJuz.data || {};
                         var currentTrackerStatus = st.status || 'Reciting';
                         var statusTimestamp = '';
@@ -212,26 +214,34 @@
                                 result.supportingJuz = String(sup.juz_number || '');
                                 result.supportAssignmentStatus = sup.support_status || 'Reciting';
                                 // Look up Tamil name from members table
-                                _supabase.from('members').select('name_ta').eq('id', sup.member_id).single().then(function(rNameTa) {
+                                _supabase.from('members').select('name_ta').eq('custom_id', sup.member_id).limit(1).then(function(rNameTa) {
                                     result.supportingNameTa = rNameTa.data ? rNameTa.data.name_ta : '';
                                     // Look up supporting Juz details
-                                    _supabase.from('members').select('juz_ar,juz_en,juz_ta').eq('sequence', parseInt(result.supportingJuz || '0')).single().then(function(rSupJuz) {
+                                    _supabase.from('sequences').select('juz_ar,juz_en,juz_ta').eq('sequence', parseInt(result.supportingJuz || '0')).single().then(function(rSupJuz) {
                                         if (rSupJuz.data) {
                                             result.supportingJuzAr = rSupJuz.data.juz_ar || '';
                                             result.supportingJuzEn = rSupJuz.data.juz_en || '';
                                             result.supportingJuzTa = rSupJuz.data.juz_ta || '';
                                         }
-                                        if (_ok) _ok(result);
+                                        if (ok) ok(result);
                                     });
                                 });
                             } else {
-                                if (_ok) _ok(result);
+                                if (ok) ok(result);
                             }
                         });
                     });
                 });
-                    return this;
+            });
+            }
+            if (!customId) {
+                _supabase.from('members').select('custom_id').eq('id', userId).single().then(function(rCid) {
+                    if (!rCid.data) { if (ok) ok({ error: "Member not found." }); return; }
+                    run(rCid.data.custom_id);
                 });
+            } else {
+                run(customId);
+            }
                 return this;
             },
             // ----------------------------------------------------------------
@@ -239,6 +249,7 @@
             // ----------------------------------------------------------------
             getHadiyaDetails: function(selectedDate) {
                 var self = this;
+                var ok = _ok;
                 function ld(s) {
                     var m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})/);
                     return m ? new Date(+m[1], +m[2]-1, +m[3]) : new Date(s);
@@ -246,7 +257,7 @@
                 var inputDate = ld(selectedDate); inputDate.setHours(0,0,0,0,0);
                 // Fetch ALL hadiya rows + status rows (for completed/reciting lists)
                 _supabase.from('hadiya_details').select('*').order('start_date', { ascending: true }).then(function(rH) {
-                    if (!rH.data || rH.data.length === 0) { if (_ok) _ok(null); return; }
+                    if (!rH.data || rH.data.length === 0) { if (ok) ok(null); return; }
                     var hadData = rH.data;
                     // Find currentIndex (latest <= inputDate)
                     var currentIdx = -1; var latestDate = null;
@@ -254,7 +265,7 @@
                         var rd = ld(hadData[i].start_date); rd.setHours(0,0,0,0,0);
                         if (rd <= inputDate && (!latestDate || rd > latestDate)) { latestDate = rd; currentIdx = i; }
                     }
-                    if (currentIdx === -1) { if (_ok) _ok(null); return; }
+                    if (currentIdx === -1) { if (ok) ok(null); return; }
 // Find todayIndex - use IST time for consistency
                      var now = new Date();
                      var IST_MS = 5.5 * 3600000;
@@ -280,19 +291,6 @@ var today = new Date(nowIST); today.setHours(0,0,0,0,0);
                         var rawNextStart = row.next_hadiya_start_moment || '';
                         var rawDedPurposeEn = row.dedicated_purpose_english || '';
                         var rawDedPurposeTa = row.dedicated_purpose_tamil || '';
-                        function parseDT(str) {
-                            var s = String(str).replace(' ', 'T');
-                            var hasTZ = s.endsWith('Z') || /[\+-]\d{2}:\d{2}$/.test(s) || /[\+-]\d{4}$/.test(s);
-                            // Match both space and T separators
-                            var p = s.match(/^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})(?::(\d{2}))?/);
-                            var result;
-                            if (p) result = new Date(+p[1],+p[2]-1,+p[3],+p[4],+p[5],+(p[6]||0));
-                            else { var d = new Date(s); result = isNaN(d.getTime()) ? ld(s) : d; }
-                            return result;
-                        }
-                        function fmtDL(d) {
-                            return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
-                        }
                         var deadlineISO = '', deadlineDisplay = '', nextStartISO = '', nextStartDisplay = '', purposeEn = '', purposeTa = '';
                         if (rawDeadline) { var pd = parseDT(rawDeadline); if (!isNaN(pd.getTime())) { deadlineISO = pd.toISOString(); deadlineDisplay = fmtDL(pd); } }
                         if (rawNextStart) { var pn = parseDT(rawNextStart); if (!isNaN(pn.getTime())) { nextStartISO = pn.toISOString(); nextStartDisplay = fmtDL(pn); } }
@@ -313,58 +311,46 @@ var today = new Date(nowIST); today.setHours(0,0,0,0,0);
                             rawIdx: idx
                         };
                     };
+                     function parseDT(str) {
+                        var s = String(str).replace(' ', 'T');
+                        var hasTZ = s.endsWith('Z') || /[\+-]\d{2}:\d{2}$/.test(s) || /[\+-]\d{4}$/.test(s);
+                        if (hasTZ) {
+                            var d = new Date(s);
+                            return isNaN(d.getTime()) ? new Date() : d;
+                        }
+                        var p = s.match(/^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})(?::(\d{2}))?/);
+                        if (p) return new Date(+p[1],+p[2]-1,+p[3],+p[4],+p[5],+(p[6]||0));
+                        var d = new Date(s);
+                        return isNaN(d.getTime()) ? new Date() : d;
+                    }
+                     function fmtDL(d) {
+                        return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+                    }
                     // Read nextStart for cutoff
                     var curRow = getRowData(currentIdx);
-                    if (!curRow) { if (_ok) _ok(null); return; }
-                    // Friday cutoff: if selecting a Friday, check whether this Friday's Hadiya has started
-                    if (inputDate.getDay() === 5) {
-                        var now = new Date();
-                        var IST_MS = 5.5 * 3600000;
-                        var nowIST = new Date(now.getTime() + now.getTimezoneOffset() * 60000 + IST_MS);
-                        // Determine the cutoff row — the row whose nextStartISO is this Friday's start time
-                        var cutoffRow = null;
-                        if (hadData[currentIdx] && ld(hadData[currentIdx].start_date).getTime() === inputDate.getTime()) {
-                            // Found row starts ON this Friday — cutoff is the previous row's nextStartISO
-                            if (currentIdx > 0) cutoffRow = getRowData(currentIdx - 1);
-                        } else {
-                            // Found row starts BEFORE this Friday (no row for this Friday) — cutoff is current row's nextStartISO
-                            cutoffRow = curRow;
-                        }
-                        var _cutoff = cutoffRow && cutoffRow.nextStartISO ? new Date(cutoffRow.nextStartISO) : null;
-                        if (_cutoff && !isNaN(_cutoff.getTime())) {
-                            if (nowIST.getTime() < _cutoff.getTime()) {
-                                // This Friday's Hadiya hasn't started yet — show previous week
-                                if (hadData[currentIdx] && ld(hadData[currentIdx].start_date).getTime() === inputDate.getTime()) {
-                                    // Move back one row
-                                    if (currentIdx > 0) { currentIdx--; curRow = getRowData(currentIdx); }
-                                }
-                                // If no row for this Friday, stay on current row (it IS the previous week)
-                            } else {
-                                // This Friday's Hadiya has started — advance to its row if needed
-                                if (!(hadData[currentIdx] && ld(hadData[currentIdx].start_date).getTime() === inputDate.getTime())) {
-                                    // Current row is from previous week, advance
-                                    if (currentIdx + 1 < hadData.length) { currentIdx++; curRow = getRowData(currentIdx); }
+                    if (!curRow) { if (ok) ok(null); return; }
+                    // Selected datetime comparison: determine which hadiya to show
+                    var selParts = selectedDate.match(/^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})/);
+                    if (selParts) {
+                        var selIST = new Date(+selParts[1], +selParts[2]-1, +selParts[3], +selParts[4], +selParts[5]);
+                        // 1. Check if current hadiya has started — compare against previous row's nextStartISO
+                        if (currentIdx > 0) {
+                            var prevRowRaw = getRowData(currentIdx - 1);
+                            if (prevRowRaw && prevRowRaw.nextStartISO) {
+                                var prevStartDT = parseDT(prevRowRaw.nextStartISO);
+                                if (!isNaN(prevStartDT.getTime()) && selIST.getTime() < prevStartDT.getTime()) {
+                                    currentIdx--; curRow = getRowData(currentIdx);
                                 }
                             }
                         }
-                        if (!curRow) { if(_ok) _ok(null); return; }
-                    }
-                    // Auto-advance (only for current-week view)
-                    if (currentIdx === todayIdx) {
-                        var curStatus = hadData[currentIdx].status || 'Pending';
-                        var now = new Date();
-                        var IST_MS = 5.5 * 3600000;
-                        var nowIST = new Date(now.getTime() + now.getTimezoneOffset() * 60000 + IST_MS);
-                        var deadlinePassed = curRow.deadlineISO && (nowIST.getTime() >= new Date(curRow.deadlineISO).getTime());
-                        if ((curStatus === 'Completed' || deadlinePassed) && curRow && curRow.nextStartISO) {
-                            var nextStartParsed = new Date(curRow.nextStartISO);
-                            if (nextStartParsed.getTime() > 0 && (nowIST.getTime() >= nextStartParsed.getTime()) && currentIdx + 1 < hadData.length) {
-                                currentIdx++;
-                                latestDate = new Date(hadData[currentIdx].start_date); latestDate.setHours(0,0,0,0,0);
-                                curRow = getRowData(currentIdx);
-                                if (!curRow) { if (_ok) _ok(null); return; }
+                        // 2. Check if next hadiya has started — compare against current row's nextStartISO
+                        if (curRow && curRow.nextStartISO) {
+                            var nextStartDT = parseDT(curRow.nextStartISO);
+                            if (!isNaN(nextStartDT.getTime()) && selIST.getTime() >= nextStartDT.getTime() && currentIdx + 1 < hadData.length) {
+                                currentIdx++; curRow = getRowData(currentIdx);
                             }
                         }
+                        if (!curRow) { if (ok) ok(null); return; }
                     }
                     // Collect completed / reciting lists from weekly_status (use Friday week)
                     var targetRef = latestDate || new Date(0);
@@ -406,7 +392,7 @@ var result = {
                              recitingList: recitingList,
                              supportersList: supportersList
                          };
-                         if (_ok) _ok(result);
+                         if (ok) ok(result);
                     });
                 });
                 return this;
@@ -416,6 +402,8 @@ var result = {
             // ----------------------------------------------------------------
             getWeeklyReport: function(selectedDate) {
                 var self = this;
+                var ok = _ok;
+                var dateOnly = dateFromDateLocal(selectedDate);
                 function fridayOf(dateStr) {
                     var m = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})/);
                     var d = m ? new Date(+m[1], +m[2]-1, +m[3]) : new Date(dateStr);
@@ -426,15 +414,12 @@ var result = {
                     var f = new Date(d); f.setDate(d.getDate() - diff);
                     return formatLocalDate(f);
                 }
-                var now = new Date();
-                var IST_MS = 5.5 * 3600000;
-                var istNow = new Date(now.getTime() + now.getTimezoneOffset() * 60000 + IST_MS);
-                var nowStr = formatLocalDate(istNow);
-                var isToday = selectedDate === nowStr;
-                // Query next_hadiya_start_moment for the current week row (the row whose next_hadiya_start_moment is the cutoff)
-                var todayFriday = fridayOf(nowStr);
-                // Get the row for 7 days ago - that row's next_hadiya_start_moment is the cutoff for this week
-                var prevFridayDate = new Date(todayFriday + 'T00:00:00');
+                // Parse selected datetime for cutoff comparison
+                var selParts = selectedDate.match(/^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})/);
+                var selectedDT = selParts ? new Date(+selParts[1], +selParts[2]-1, +selParts[3], +selParts[4], +selParts[5]) : null;
+
+                var selectedFriday = fridayOf(dateOnly);
+                var prevFridayDate = new Date(selectedFriday + 'T00:00:00');
                 prevFridayDate.setDate(prevFridayDate.getDate() - 7);
                 var prevFriday = formatLocalDate(prevFridayDate);
                 _supabase.from('hadiya_details').select('next_hadiya_start_moment').eq('start_date', prevFriday).limit(1).then(function(rH) {
@@ -442,13 +427,11 @@ var result = {
                     if (rH.data && rH.data.length > 0 && rH.data[0].next_hadiya_start_moment) {
                         var raw = rH.data[0].next_hadiya_start_moment;
                         var s = String(raw).trim().replace(' ', 'T');
-                        // Check if the string already has timezone info
                         var hasTimezone = s.endsWith('Z') || /[\+\-]\d{2}:\d{2}$/.test(s) || /[\+\-]\d{4}$/.test(s);
                         var d;
                         if (hasTimezone) {
                             d = new Date(s);
                         } else {
-                            // Parse as local time (IST) - use manual construction to ensure local interpretation
                             var p = s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/);
                             if (p) {
                                 d = new Date(+p[1], +p[2]-1, +p[3], +p[4], +p[5], +(p[6]||0));
@@ -458,60 +441,66 @@ var result = {
                         }
                         if (!isNaN(d.getTime())) cutoffTime = d;
                     }
-                    // No fallback — only use DB value
-                    var isBeforeNextStart = cutoffTime && istNow.getTime() < cutoffTime.getTime();
+                    var isBeforeNextStart = cutoffTime && selectedDT && selectedDT.getTime() < cutoffTime.getTime();
                     var correctMonday;
                     if (isBeforeNextStart) {
-                        var tmp = new Date(nowStr + 'T00:00:00');
+                        var tmp = new Date(dateOnly + 'T00:00:00');
                         tmp.setDate(tmp.getDate() - 7);
                         correctMonday = fridayOf(formatLocalDate(tmp));
                     } else {
-                        correctMonday = fridayOf(nowStr);
+                        correctMonday = fridayOf(dateOnly);
                     }
-                    var adjDate = selectedDate;
-                    if (isBeforeNextStart && isToday) {
-                        var sd = new Date(selectedDate + 'T00:00:00');
+                    var adjDate = dateOnly;
+                    if (isBeforeNextStart) {
+                        var sd = new Date(dateOnly + 'T00:00:00');
                         sd.setDate(sd.getDate() - 7);
                         adjDate = formatLocalDate(sd);
                     }
                     var monday = fridayOf(adjDate);
-                    if (!monday) { if (_ok) _ok({ error: "Invalid date." }); return; }
+                    if (!monday) { if (ok) ok({ error: "Invalid date." }); return; }
                     var editable = monday === correctMonday;
                     // Fetch report data
                     _supabase.from('weekly_status').select('member_id,juz_number,member_name,status,completed_date_time,exception_raised_time,supported_by_name,support_status').eq('week_start', monday).then(function(rStat) {
                         if (!rStat.data || rStat.data.length === 0) {
-                            _supabase.from('members').select('id,sequence,name_en,name_ta').order('sequence', { ascending: true }).then(function(rMem) {
-                                if (!rMem.data || rMem.data.length === 0) { if (_ok) _ok({ error: "No members found." }); return; }
+                            _supabase.from('members').select('id,custom_id,name_en,name_ta,effective_date').order('custom_id', { ascending: true }).then(function(rMem) {
+                                if (!rMem.data || rMem.data.length === 0) { if (ok) ok({ error: "No members found." }); return; }
+                                var activeMem = filterActiveMembers(rMem.data, monday);
                                 _supabase.from('weekly_status').select('week_start').order('week_start', { ascending: true }).limit(1).then(function(rFirst) {
                                     var baseDate = (rFirst.data && rFirst.data.length > 0) ? new Date(rFirst.data[0].week_start) : new Date('2026-01-02');
                                     baseDate.setHours(0, 0, 0, 0);
                                     var weekDiff = Math.round((new Date(monday + 'T00:00:00') - baseDate) / (7 * 86400000));
                                     if (weekDiff < 0) weekDiff = 0;
-                                    _supabase.from('members').select('sequence,juz_ar,juz_en,juz_ta').order('sequence', { ascending: true }).then(function(rJuz) {
+                                    _supabase.from('sequences').select('sequence,juz_ar,juz_en,juz_ta').order('sequence', { ascending: true }).then(function(rJuz) {
                                         var juzMap = {};
                                         if (rJuz.data) rJuz.data.forEach(function(j) { juzMap[j.sequence] = { arabic: j.juz_ar||'', english: j.juz_en||'', tamil: j.juz_ta||'' }; });
-                                        var reportList = rMem.data.map(function(m) {
-                                            var n = ((m.sequence - 1 + weekDiff) % 30) + 1;
+                                        var reportList = activeMem.map(function(m) {
+                                            var n = ((parseInt(m.custom_id.replace(/[^0-9]/g, ''), 10) - 1 + weekDiff) % 30) + 1;
                                             var jd = juzMap[n] || {};
                                             return { userId: m.id, name: (m.name_en||'')+' | '+(m.name_ta||''), juzNum: String(n), juzAr: jd.arabic||'', juzEn: jd.english||'', juzTa: jd.tamil||'', status: 'Not Started', dateLogged: '', supportedBy: '', supportStatus: '', isEditable: editable };
                                         });
-                                        if (_ok) _ok({ week: monday, data: reportList, isEditable: editable });
+                                        if (ok) ok({ week: monday, data: reportList, isEditable: editable });
                                     });
                                 });
                             });
                             return;
                         }
-                        _supabase.from('members').select('id,sequence,name_en,name_ta,juz_ar,juz_en,juz_ta').order('sequence', { ascending: true }).then(function(rJuz) {
+                        Promise.all([
+                            _supabase.from('members').select('id,custom_id,name_en,name_ta,effective_date').order('custom_id', { ascending: true }),
+                            _supabase.from('sequences').select('sequence,juz_ar,juz_en,juz_ta').order('sequence', { ascending: true })
+                        ]).then(function(results) {
+                            var rMem = results[0], rSeq = results[1];
                             var juzMap = {}, nameMap = {};
-                            if (rJuz.data) rJuz.data.forEach(function(j) { juzMap[j.sequence] = { arabic: j.juz_ar||'', english: j.juz_en||'', tamil: j.juz_ta||'' }; nameMap[j.id] = { en: j.name_en||'', ta: j.name_ta||'' }; });
+                            var activeMem = rMem.data ? filterActiveMembers(rMem.data, monday) : [];
+                            activeMem.forEach(function(j) { nameMap[j.custom_id] = { id: j.id, en: j.name_en||'', ta: j.name_ta||'' }; });
+                            if (rSeq.data) rSeq.data.forEach(function(j) { juzMap[j.sequence] = { arabic: j.juz_ar||'', english: j.juz_en||'', tamil: j.juz_ta||'' }; });
                             var reportList = rStat.data.map(function(s) {
                                 var mi = nameMap[s.member_id] || {};
                                 var jd = juzMap[s.juz_number] || {};
                                 var dn = (mi.en||s.member_name||'') + ' | ' + (mi.ta||'');
                                 var dl = s.status === 'Completed' ? (s.completed_date_time || '') : (s.status === 'Exception Raised' ? (s.completed_date_time || s.exception_raised_time || '') : '');
-                                return { userId: s.member_id, name: dn, juzNum: String(s.juz_number), juzAr: jd.arabic||'', juzEn: jd.english||'', juzTa: jd.tamil||'', status: s.status||'Not Started', dateLogged: dl, supportedBy: s.supported_by_name||'', supportStatus: s.support_status||'', isEditable: editable };
+                                return { userId: mi.id || s.member_id, name: dn, juzNum: String(s.juz_number), juzAr: jd.arabic||'', juzEn: jd.english||'', juzTa: jd.tamil||'', status: s.status||'Not Started', dateLogged: dl, supportedBy: s.supported_by_name||'', supportStatus: s.support_status||'', isEditable: editable };
                             });
-                            if (_ok) _ok({ week: monday, data: reportList, isEditable: editable });
+                            if (ok) ok({ week: monday, data: reportList, isEditable: editable });
                         });
                     });
                 });
@@ -522,24 +511,30 @@ var result = {
             // ----------------------------------------------------------------
             updateWeeklyStatus: function(userId, inputDateStr, statusUpdate, customTimestamp) {
                 var self = this;
+                var ok = _ok;
                 try {
                     var monday = normalizeToWeekStart(inputDateStr);
-                    if (!monday) { if (_ok) _ok({ success: false, error: 'Invalid date' }); return this; }
+                    if (!monday) { if (ok) ok({ success: false, error: 'Invalid date' }); return this; }
+                    // Look up custom_id for weekly_status queries
+                    var customId = null;
+                    _supabase.from('members').select('custom_id').eq('id', userId).single().then(function(rCid) {
+                        if (!rCid.data) { if (ok) ok({ success: false, error: 'Member not found' }); return; }
+                        customId = rCid.data.custom_id;
                     // Get existing status
-                    _supabase.from('weekly_status').select('*').eq('week_start', monday).eq('member_id', userId).single().then(function(rGet) {
+                    _supabase.from('weekly_status').select('*').eq('week_start', monday).eq('member_id', customId).single().then(function(rGet) {
                         var existing = rGet.data;
-                        var nameEn = userId;
-                        if (existing) nameEn = existing.member_name || userId;
+                        var nameEn = customId;
+                        if (existing) nameEn = existing.member_name || customId;
                         var timestamp = (customTimestamp && customTimestamp.trim()) ? customTimestamp.trim() : formatCurrentTimestamp();
                         var updaterEmail = 'Web User (Supabase)';
                         var oldStatus = existing ? existing.status : 'Not Started';
                         if (existing && existing.status === statusUpdate && !(customTimestamp && customTimestamp.trim())) {
-                            if (_ok) _ok({ success: true, noChange: true }); return;
+                            if (ok) ok({ success: true, noChange: true }); return;
                         }
                         // Determine juz_number: use existing or compute dynamically
                         function doUpsert(juzNum) {
                             var upsertData = {
-                                week_start: monday, member_id: userId, member_name: nameEn, juz_number: juzNum,
+                                week_start: monday, member_id: customId, member_name: nameEn, juz_number: juzNum,
                                 status: statusUpdate, completed_date_time: null, exception_raised_time: null,
                                 supported_by_name: '', supported_by_id: '', support_status: 'Reciting',
                                 audit_log: existing ? (existing.audit_log || '') : ''
@@ -566,7 +561,7 @@ var result = {
                             var newLog = '[' + timestamp + ' - ' + updaterEmail + '] Modified Status from \'' + oldStatus + '\' to \'' + statusUpdate + '\'';
                             upsertData.audit_log = existing ? (existing.audit_log || '') + '\n' + newLog : newLog;
                             _supabase.from('weekly_status').upsert(upsertData, { onConflict: 'week_start,member_id' }).then(function(rUp) {
-                                if (rUp.error) { if (_ok) _ok({ success: false, error: rUp.error.message }); return; }
+                                if (rUp.error) { if (ok) ok({ success: false, error: rUp.error.message }); return; }
                                 
                                 // Send email notification if status is Completed or Exception (or changing from those)
                                 var notableStatuses = ['Completed', 'Exception Raised'];
@@ -595,34 +590,33 @@ var result = {
                                     }
                                 }
                                 
-                                if (_ok) _ok({ success: true });
+                                if (ok) ok({ success: true });
                             });
                         }
                         if (existing && existing.juz_number) {
                             doUpsert(existing.juz_number);
                         } else {
                             // No existing record — compute juz number dynamically
-                            _supabase.from('members').select('sequence').eq('id', userId).single().then(function(rSeq) {
-                                if (!rSeq.data) { if (_ok) _ok({ success: false, error: 'Member not found' }); return; }
-                                var seq = rSeq.data.sequence;
-                                _supabase.from('weekly_status').select('week_start').order('week_start', { ascending: true }).limit(1).then(function(rFirst) {
-                                    var baseDate;
-                                    if (rFirst.data && rFirst.data.length > 0) {
-                                        baseDate = new Date(rFirst.data[0].week_start);
-                                    } else {
-                                        baseDate = new Date('2026-01-02');
-                                    }
-                                    baseDate.setHours(0, 0, 0, 0);
-                                    var targetDate = new Date(monday + 'T00:00:00');
-                                    var weekDiff = Math.round((targetDate - baseDate) / (7 * 86400000));
-                                    if (weekDiff < 0) weekDiff = 0;
-                                    var dynJuz = ((seq - 1 + weekDiff) % 30) + 1;
-                                    doUpsert(dynJuz);
-                                });
+                            var seq = parseInt(customId.replace(/[^0-9]/g, ''), 10);
+                            _supabase.from('weekly_status').select('week_start').order('week_start', { ascending: true }).limit(1).then(function(rFirst) {
+                                var baseDate;
+                                if (rFirst.data && rFirst.data.length > 0) {
+                                    baseDate = new Date(rFirst.data[0].week_start);
+                                } else {
+                                    baseDate = new Date('2026-01-02');
+                                }
+                                baseDate.setHours(0, 0, 0, 0);
+                                var targetDate = new Date(monday + 'T00:00:00');
+                                var weekDiff = Math.round((targetDate - baseDate) / (7 * 86400000));
+                                if (weekDiff < 0) weekDiff = 0;
+                                var dynJuz = ((seq - 1 + weekDiff) % 30) + 1;
+                                doUpsert(dynJuz);
                             });
                         }
                     });
-                } catch(err) { if (_ok) _ok({ success: false, error: err.toString() }); }
+                    return this;
+                });
+                } catch(err) { if (ok) ok({ success: false, error: err.toString() }); }
                 return this;
             },
             // ----------------------------------------------------------------
@@ -630,12 +624,17 @@ var result = {
             // ----------------------------------------------------------------
             updateSupportStatus: function(userId, inputDateStr, newSupportStatus, customTimestamp) {
                 var self = this;
+                var ok = _ok;
                 try {
                     var monday = normalizeToWeekStart(inputDateStr);
-                    if (!monday) { if (_ok) _ok({ success: false, error: 'Invalid date' }); return this; }
-                    _supabase.from('weekly_status').select('*').eq('week_start', monday).eq('member_id', userId).single().then(function(rGet) {
+                    if (!monday) { if (ok) ok({ success: false, error: 'Invalid date' }); return this; }
+                    var customId = null;
+                    _supabase.from('members').select('custom_id').eq('id', userId).single().then(function(rCid) {
+                        if (!rCid.data) { if (ok) ok({ success: false, error: 'Member not found' }); return; }
+                        customId = rCid.data.custom_id;
+                    _supabase.from('weekly_status').select('*').eq('week_start', monday).eq('member_id', customId).single().then(function(rGet) {
                         var existing = rGet.data;
-                        if (!existing) { if (_ok) _ok({ success: false, error: 'Record not found' }); return; }
+                        if (!existing) { if (ok) ok({ success: false, error: 'Record not found' }); return; }
                         var timestamp = (customTimestamp && customTimestamp.trim()) ? customTimestamp.trim() : formatCurrentTimestamp();
                         var updaterEmail = 'Web User (Supabase)';
                         var oldSupStatus = existing.support_status || 'None';
@@ -645,8 +644,8 @@ var result = {
                         else updateData.completed_date_time = null;
                         var newLog = '[' + timestamp + ' - ' + updaterEmail + '] Updated Support Status from \'' + oldSupStatus + '\' to \'' + newSupportStatus + '\'';
                         updateData.audit_log = (existing.audit_log || '') + '\n' + newLog;
-                        _supabase.from('weekly_status').update(updateData).eq('week_start', monday).eq('member_id', userId).then(function(rUp) {
-                            if (rUp.error) { if (_ok) _ok({ success: false, error: rUp.error.message }); return; }
+                        _supabase.from('weekly_status').update(updateData).eq('week_start', monday).eq('member_id', customId).then(function(rUp) {
+                            if (rUp.error) { if (ok) ok({ success: false, error: rUp.error.message }); return; }
                             
                             // Send email notification if support status is Completed (or changing from Completed)
                             if (newSupportStatus === 'Completed' || oldSupStatus === 'Completed') {
@@ -664,7 +663,7 @@ var result = {
                                     var supId = existing.supported_by_id || '';
                                     
                                     Promise.all([
-                                        _supabase.from('members').select('name_ta').eq('id', readerId).single(),
+                                        _supabase.from('members').select('name_ta').eq('custom_id', readerId).limit(1).then(function(r) { return { data: r.data && r.data.length > 0 ? r.data[0] : null }; }),
                                         supId ? _supabase.from('members').select('name_ta').eq('id', supId).single() : Promise.resolve({ data: null })
                                     ]).then(function(results) {
                                         var readerTaName = results[0].data ? results[0].data.name_ta : enName;
@@ -693,10 +692,12 @@ var result = {
                                 }
                             }
                             
-                            if (_ok) _ok({ success: true });
+                            if (ok) ok({ success: true });
                         });
                     });
-                } catch(err) { if (_ok) _ok({ success: false, error: err.toString() }); }
+                    return this;
+                });
+                } catch(err) { if (ok) ok({ success: false, error: err.toString() }); }
                 return this;
             },
             // ----------------------------------------------------------------
@@ -704,16 +705,22 @@ var result = {
             // ----------------------------------------------------------------
             reassignJuz: function(userId, inputDateStr, supportUserId) {
                 var self = this;
+                var ok = _ok;
                 try {
                     var monday = normalizeToWeekStart(inputDateStr);
-                    if (!monday) { if (_ok) _ok({ success: false, error: 'Invalid date' }); return this; }
+                    if (!monday) { if (ok) ok({ success: false, error: 'Invalid date' }); return this; }
+                    // Get custom_id for weekly_status queries
+                    var customId = null;
+                    _supabase.from('members').select('custom_id').eq('id', userId).single().then(function(rCid) {
+                        if (!rCid.data) { if (ok) ok({ success: false, error: 'Member not found' }); return; }
+                        customId = rCid.data.custom_id;
                     // Get support user name
                     _supabase.from('members').select('name_en,name_ta').eq('id', supportUserId).single().then(function(rSup) {
                         var supName = rSup.data ? (rSup.data.name_en || 'Support') + ' | ' + (rSup.data.name_ta || '') : 'Support Reader';
                         // Get existing record
-                        _supabase.from('weekly_status').select('*').eq('week_start', monday).eq('member_id', userId).single().then(function(rGet) {
+                        _supabase.from('weekly_status').select('*').eq('week_start', monday).eq('member_id', customId).single().then(function(rGet) {
                             var existing = rGet.data;
-                            if (!existing) { if (_ok) _ok({ success: false, error: 'Record not found' }); return; }
+                            if (!existing) { if (ok) ok({ success: false, error: 'Record not found' }); return; }
                             var timestamp = formatCurrentTimestamp();
                             var updaterEmail = 'Web User (Supabase)';
                             var updateData = {
@@ -723,8 +730,8 @@ var result = {
                             };
                             var newLog = '[' + timestamp + ' - ' + updaterEmail + '] Reassigned Juz Reciting to: ' + supName + ' (Status: Reciting)';
                             updateData.audit_log = (existing.audit_log || '') + '\n' + newLog;
-                            _supabase.from('weekly_status').update(updateData).eq('week_start', monday).eq('member_id', userId).then(function(rUp) {
-                                if (rUp.error) { if (_ok) _ok({ success: false, error: rUp.error.message }); return; }
+                            _supabase.from('weekly_status').update(updateData).eq('week_start', monday).eq('member_id', customId).then(function(rUp) {
+                                if (rUp.error) { if (ok) ok({ success: false, error: rUp.error.message }); return; }
                                 
                                 // Send email notification for support assignment
                                 try {
@@ -757,11 +764,13 @@ var result = {
                                     console.error('Email notification failed:', emailErr);
                                 }
                                 
-                                if (_ok) _ok({ success: true, assignedName: supName });
+                                if (ok) ok({ success: true, assignedName: supName });
                             });
                         });
                     });
-                } catch(err) { if (_ok) _ok({ success: false, error: err.toString() }); }
+                    return this;
+                });
+                } catch(err) { if (ok) ok({ success: false, error: err.toString() }); }
                 return this;
             },
             // ----------------------------------------------------------------
@@ -769,18 +778,19 @@ var result = {
             // ----------------------------------------------------------------
             updateHadiyaStatus: function(selectedDate, newStatus) {
                 var self = this;
+                var ok = _ok;
                 try {
                     var friday = normalizeToFriday(selectedDate);
-                    if (!friday) { if (_ok) _ok({ success: false, error: 'Invalid date' }); return this; }
+                    if (!friday) { if (ok) ok({ success: false, error: 'Invalid date' }); return this; }
                     // Find the hadiya row for this week (PK is start_date)
                     _supabase.from('hadiya_details').select('start_date').lte('start_date', friday).order('start_date', { ascending: false }).limit(1).single().then(function(rGet) {
-                        if (!rGet.data) { if (_ok) _ok({ success: false, error: 'Hadiya row not found' }); return; }
+                        if (!rGet.data) { if (ok) ok({ success: false, error: 'Hadiya row not found' }); return; }
                         _supabase.from('hadiya_details').update({ status: newStatus }).eq('start_date', rGet.data.start_date).then(function(rUp) {
-                            if (rUp.error) { if (_ok) _ok({ success: false, error: rUp.error.message }); return; }
-                            if (_ok) _ok({ success: true });
+                            if (rUp.error) { if (ok) ok({ success: false, error: rUp.error.message }); return; }
+                            if (ok) ok({ success: true });
                         });
                     });
-                } catch(err) { if (_ok) _ok({ success: false, error: err.toString() }); }
+                } catch(err) { if (ok) ok({ success: false, error: err.toString() }); }
                 return this;
             },
             // ----------------------------------------------------------------
@@ -788,22 +798,23 @@ var result = {
             // ----------------------------------------------------------------
             updateHadiyaDedication: function(selectedDate, dedicationEn, dedicationTa, purposeEn, purposeTa) {
                 var self = this;
+                var ok = _ok;
                 try {
                     var friday = normalizeToFriday(selectedDate);
-                    if (!friday) { if (_ok) _ok({ success: false, error: 'Invalid date' }); return this; }
+                    if (!friday) { if (ok) ok({ success: false, error: 'Invalid date' }); return this; }
                     _supabase.from('hadiya_details').select('start_date').lte('start_date', friday).order('start_date', { ascending: false }).limit(1).single().then(function(rGet) {
-                        if (!rGet.data) { if (_ok) _ok({ success: false, error: 'Hadiya row not found' }); return; }
+                        if (!rGet.data) { if (ok) ok({ success: false, error: 'Hadiya row not found' }); return; }
                         _supabase.from('hadiya_details').update({ 
                             dedicated_to: dedicationEn, 
                             dedicated_to_ta: dedicationTa,
                             dedicated_purpose_english: purposeEn,
                             dedicated_purpose_tamil: purposeTa
                         }).eq('start_date', rGet.data.start_date).then(function(rUp) {
-                            if (rUp.error) { if (_ok) _ok({ success: false, error: rUp.error.message }); return; }
-                            if (_ok) _ok({ success: true });
+                            if (rUp.error) { if (ok) ok({ success: false, error: rUp.error.message }); return; }
+                            if (ok) ok({ success: true });
                         });
                     });
-                } catch(err) { if (_ok) _ok({ success: false, error: err.toString() }); }
+                } catch(err) { if (ok) ok({ success: false, error: err.toString() }); }
                 return this;
             },
             // ----------------------------------------------------------------
@@ -811,9 +822,10 @@ var result = {
             // ----------------------------------------------------------------
             fixAllHadiyaScheduleTimes: function() {
                 var self = this;
+                var ok = _ok;
                 _supabase.from('hadiya_details').select('start_date').order('start_date', { ascending: true }).then(function(rAll) {
                     if (!rAll.data || rAll.data.length === 0) {
-                        if (_ok) _ok({ success: false, error: 'No hadiya rows found' });
+                        if (ok) ok({ success: false, error: 'No hadiya rows found' });
                         return;
                     }
                     var total = rAll.data.length;
@@ -831,7 +843,7 @@ var result = {
                         }).eq('start_date', row.start_date).then(function(rUp) {
                             done++;
                             if (done === total) {
-                                if (_ok) _ok({ success: true, updated: total });
+                                if (ok) ok({ success: true, updated: total });
                             }
                         });
                     });
@@ -843,17 +855,74 @@ var result = {
             // ----------------------------------------------------------------
             updateHadiyaScheduleTimes: function(selectedDate, deadlineISO, nextStartISO) {
                 var self = this;
+                var ok = _ok;
                 try {
                     var friday = normalizeToFriday(selectedDate);
-                    if (!friday) { if (_ok) _ok({ success: false, error: 'Invalid date' }); return this; }
+                    if (!friday) { if (ok) ok({ success: false, error: 'Invalid date' }); return this; }
                     _supabase.from('hadiya_details').select('start_date').lte('start_date', friday).order('start_date', { ascending: false }).limit(1).single().then(function(rGet) {
-                        if (!rGet.data) { if (_ok) _ok({ success: false, error: 'Hadiya row not found' }); return; }
+                        if (!rGet.data) { if (ok) ok({ success: false, error: 'Hadiya row not found' }); return; }
                         _supabase.from('hadiya_details').update({ countdown_end_moment: deadlineISO, next_hadiya_start_moment: nextStartISO }).eq('start_date', rGet.data.start_date).then(function(rUp) {
-                            if (rUp.error) { if (_ok) _ok({ success: false, error: rUp.error.message }); return; }
-                            if (_ok) _ok({ success: true, deadline: deadlineISO, nextStart: nextStartISO });
+                            if (rUp.error) { if (ok) ok({ success: false, error: rUp.error.message }); return; }
+                            if (ok) ok({ success: true, deadline: deadlineISO, nextStart: nextStartISO });
                         });
                     });
-                } catch(err) { if (_ok) _ok({ success: false, error: err.toString() }); }
+                } catch(err) { if (ok) ok({ success: false, error: err.toString() }); }
+                return this;
+            },
+            // ----------------------------------------------------------------
+            // getAllMembers - for member management (no effective_date filter)
+            // ----------------------------------------------------------------
+            getAllMembers: function() {
+                var ok = _ok;
+                _supabase.from('members').select('id,custom_id,name_en,name_ta,effective_date').order('custom_id', { ascending: true }).then(function(r) {
+                    if (r.error) { if (ok) ok([]); return; }
+                    if (ok) ok(r.data || []);
+                });
+                return this;
+            },
+            // ----------------------------------------------------------------
+            // addMember
+            // ----------------------------------------------------------------
+            addMember: function(nameEn, nameTa, customId, effectiveDate) {
+                var ok = _ok, err = _err;
+                _supabase.from('members').insert({
+                    name_en: nameEn, name_ta: nameTa, custom_id: customId,
+                    effective_date: effectiveDate || null
+                }).select('id').single().then(function(r) {
+                    if (r.error) { console.error('addMember members err', r.error); if (err) err(r.error); else if (ok) ok({ success: false, error: r.error.message }); return; }
+                    if (ok) ok({ success: true, id: r.data.id });
+                });
+                return this;
+            },
+            // ----------------------------------------------------------------
+            // updateMember
+            // ----------------------------------------------------------------
+            updateMember: function(id, nameEn, nameTa, customId, effectiveDate) {
+                var ok = _ok, err = _err;
+                var cutDate = effectiveDate ? effectiveDate.slice(0,10) : new Date().toISOString().slice(0,10);
+                // Update the member row
+                _supabase.from('members').update({
+                    name_en: nameEn, name_ta: nameTa, custom_id: customId,
+                    effective_date: effectiveDate || null
+                }).eq('id', id).then(function(r) {
+                    if (r.error) { console.error('updateMember members err', r.error); if (err) err(r.error); else if (ok) ok({ success: false, error: r.error.message }); return; }
+                    // Update weekly_status for all rows with this custom_id where week_start >= cutDate
+                    _supabase.from('weekly_status').update({ member_name: nameEn }).eq('member_id', customId).gte('week_start', cutDate).then(function(r2) {
+                        if (r2.error) console.error('updateMember weekly_status err', r2.error);
+                        if (ok) ok({ success: true });
+                    });
+                });
+                return this;
+            },
+            // ----------------------------------------------------------------
+            // deleteMember
+            // ----------------------------------------------------------------
+            deleteMember: function(id) {
+                var ok = _ok;
+                _supabase.from('members').delete().eq('id', id).then(function(r) {
+                    if (r.error) { if (ok) ok({ success: false, error: r.error.message }); return; }
+                    if (ok) ok({ success: true });
+                });
                 return this;
             }
         };
