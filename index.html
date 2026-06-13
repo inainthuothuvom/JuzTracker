@@ -45,8 +45,8 @@
     </div>
     
     <div class="form-group">
-        <label>Selected Date <br> தேதியைத் தேர்ந்தெடுக்கவும்</label>
-        <input type="date" id="dateInput">
+        <label>Selected Date & Time <br> தேதி & நேரம்</label>
+        <input type="datetime-local" id="dateInput">
     </div>
 
     <div class="form-group">
@@ -64,6 +64,10 @@
 
     <button id="reportBtn" class="btn-secondary" onclick="openReportModal()">
         View Weekly Report <br> வாராந்திர அறிக்கை
+    </button>
+
+    <button id="manageMembersBtn" class="btn-secondary" onclick="openMemberManager()" style="margin-top:8px; width:100%;">
+        Manage Members <br> உறுப்பினர்கள்
     </button>
     
     <div id="loader">Fetching data...</div>
@@ -387,6 +391,58 @@
                 <div style="display:flex; gap:8px;">
                     <button class="btn-status-completed" onclick="submitSupportFromAssignment('Completed')" style="flex:1; padding:10px 8px; white-space:normal;">Completed ✅<br><span style="font-size:0.7rem;">நிறைவேற்றப்பட்டது</span></button>
                     <button class="btn-status-reciting" onclick="submitSupportFromAssignment('Reciting')" style="flex:1; padding:10px 8px; white-space:normal;">Reciting 🔄<br><span style="font-size:0.7rem;">ஓதிக்கொண்டிருக்கிறேன்</span></button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="memberManagerModal" class="modal">
+    <div class="modal-content" style="max-width:420px;">
+        <div class="modal-header" style="border-bottom:none; margin-bottom:5px; padding-bottom:0;">
+            <span class="modal-title" style="font-size:1rem; color:#79c0ff;">Manage Members / உறுப்பினர்கள்</span>
+            <span class="close-btn" onclick="closeMemberManager()" style="font-size:2rem; font-weight:bold; color:#8b949e; cursor:pointer; line-height:1;">&times;</span>
+        </div>
+        <div id="memberManagerBody">
+            <div style="margin-bottom:12px;">
+                <label style="font-size:0.75rem;color:#c9d1d9;display:block;margin-bottom:4px;">Select existing member to update / மாற்ற தேர்வு</label>
+                <div class="searchable-select-container">
+                    <input type="text" id="memberSearch" class="search-input" placeholder="Search member..." autocomplete="off" onfocus="this.select(); openMemberDropdown()" oninput="filterMemberOptions()" onblur="setTimeout(closeMemberDropdown, 200)" value="">
+                    <div class="searchable-dropdown" id="memberDropdown"></div>
+                    <input type="hidden" id="memberSelectId" value="">
+                </div>
+            </div>
+            <div style="text-align:center; margin-bottom:10px;">
+                <span style="color:#8b949e; font-size:0.75rem;">— or —</span>
+            </div>
+            <button onclick="resetMemberForm()" style="margin-bottom:12px; width:100%; padding:8px; background:transparent; border:1px dashed #30363d; border-radius:6px; color:#58a6ff; cursor:pointer; font-family:inherit; font-size:0.85rem;">
+                + Add New Member / புதிய உறுப்பினர்
+            </button>
+            <div id="memberFormFields" style="display:none;">
+                <input type="hidden" id="memberFormEditId" value="">
+                <div id="replaceSection" style="margin-bottom:12px;">
+                    <label style="font-size:0.75rem;color:#c9d1d9;display:block;margin-bottom:4px;">Replacing / மாற்றப்படுபவர்</label>
+                    <div class="searchable-select-container">
+                        <input type="text" id="replaceSearch" class="search-input" placeholder="Search member to replace..." autocomplete="off" onfocus="this.select(); openReplaceDropdown()" oninput="filterReplaceOptions()" onblur="setTimeout(closeReplaceDropdown, 200)" value="">
+                        <div class="searchable-dropdown" id="replaceDropdown"></div>
+                        <input type="hidden" id="replaceSelectId" value="">
+                    </div>
+                </div>
+                <div style="margin-bottom:8px;">
+                    <label style="font-size:0.75rem;color:#c9d1d9;display:block;margin-bottom:4px;">Name (English) / பெயர் (ஆங்கிலம்)</label>
+                    <input type="text" id="memberFormNameEn" style="width:100%;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#e6edf3;padding:10px;font-size:0.85rem;font-family:inherit;box-sizing:border-box;">
+                </div>
+                <div style="margin-bottom:8px;">
+                    <label style="font-size:0.75rem;color:#c9d1d9;display:block;margin-bottom:4px;">Name (Tamil) / பெயர் (தமிழ்)</label>
+                    <input type="text" id="memberFormNameTa" style="width:100%;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#e6edf3;padding:10px;font-size:0.85rem;font-family:inherit;box-sizing:border-box;">
+                </div>
+                <div style="margin-bottom:12px;">
+                    <label style="font-size:0.75rem;color:#c9d1d9;display:block;margin-bottom:4px;">Effective Date / நடைமுறை தேதி</label>
+                    <input type="datetime-local" id="memberFormEffDate" style="width:100%;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#e6edf3;padding:10px;font-size:0.85rem;font-family:inherit;box-sizing:border-box;">
+                </div>
+                <div style="display:flex; gap:8px;">
+                    <button onclick="saveMember()" style="flex:1; padding:10px; background:#1f6feb; border:none; border-radius:6px; color:#fff; font-weight:600; cursor:pointer; font-family:inherit;">Save / சேமிக்க</button>
+                    <button onclick="cancelMemberForm()" class="btn-secondary" style="flex:1; padding:10px;">Cancel / ரத்து</button>
                 </div>
             </div>
         </div>
