@@ -870,11 +870,45 @@ var result = {
                 return this;
             },
             // ----------------------------------------------------------------
+            // signIn - authenticate user by email + password
+            // ----------------------------------------------------------------
+            signIn: function(email, password) {
+                var ok = _ok, err = _err;
+                var pwdHash = simpleHash(password);
+                _supabase.from('members').select('id,email,mobile,system_user_id,role,name_en,name_ta,custom_id').eq('email', email).eq('password', pwdHash).single().then(function(r) {
+                    if (r.error || !r.data) {
+                        if (err) err(r.error || { message: 'Invalid email or password' });
+                        else if (ok) ok(null);
+                        return;
+                    }
+                    setSession(r.data);
+                    if (ok) ok(r.data);
+                });
+                return this;
+            },
+            // ----------------------------------------------------------------
+            // signOut - clear session
+            // ----------------------------------------------------------------
+            signOut: function() {
+                clearSession();
+                var ok = _ok;
+                if (ok) ok({ success: true });
+                return this;
+            },
+            // ----------------------------------------------------------------
+            // getCurrentSession - returns cached session
+            // ----------------------------------------------------------------
+            getCurrentSession: function() {
+                var ok = _ok;
+                if (ok) ok(getSession());
+                return this;
+            },
+            // ----------------------------------------------------------------
             // getAllMembers - for member management (no effective_date filter)
             // ----------------------------------------------------------------
             getAllMembers: function() {
                 var ok = _ok;
-                _supabase.from('members').select('id,custom_id,name_en,name_ta,effective_date').order('custom_id', { ascending: true }).then(function(r) {
+                _supabase.from('members').select('id,custom_id,name_en,name_ta,effective_date,email,mobile,system_user_id,role').order('custom_id', { ascending: true }).then(function(r) {
                     if (r.error) { if (ok) ok([]); return; }
                     if (ok) ok(r.data || []);
                 });
@@ -883,11 +917,16 @@ var result = {
             // ----------------------------------------------------------------
             // addMember
             // ----------------------------------------------------------------
-            addMember: function(nameEn, nameTa, customId, effectiveDate) {
+            addMember: function(nameEn, nameTa, customId, effectiveDate, email, mobile, password, role) {
                 var ok = _ok, err = _err;
+                var sysUserId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'usr_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+                var pwdHash = password ? simpleHash(password) : null;
                 _supabase.from('members').insert({
                     name_en: nameEn, name_ta: nameTa, custom_id: customId,
-                    effective_date: effectiveDate || null
+                    effective_date: effectiveDate || null,
+                    email: email || null, mobile: mobile || null,
+                    password: pwdHash, system_user_id: sysUserId,
+                    role: role || 'user'
                 }).select('id').single().then(function(r) {
                     if (r.error) { console.error('addMember members err', r.error); if (err) err(r.error); else if (ok) ok({ success: false, error: r.error.message }); return; }
                     if (ok) ok({ success: true, id: r.data.id });
@@ -897,14 +936,17 @@ var result = {
             // ----------------------------------------------------------------
             // updateMember
             // ----------------------------------------------------------------
-            updateMember: function(id, nameEn, nameTa, customId, effectiveDate) {
+            updateMember: function(id, nameEn, nameTa, customId, effectiveDate, email, mobile, role) {
                 var ok = _ok, err = _err;
                 var cutDate = effectiveDate ? effectiveDate.slice(0,10) : new Date().toISOString().slice(0,10);
-                // Update the member row
-                _supabase.from('members').update({
+                var updateObj = {
                     name_en: nameEn, name_ta: nameTa, custom_id: customId,
                     effective_date: effectiveDate || null
-                }).eq('id', id).then(function(r) {
+                };
+                if (email !== undefined) updateObj.email = email || null;
+                if (mobile !== undefined) updateObj.mobile = mobile || null;
+                if (role !== undefined) updateObj.role = role || 'user';
+                _supabase.from('members').update(updateObj).eq('id', id).then(function(r) {
                     if (r.error) { console.error('updateMember members err', r.error); if (err) err(r.error); else if (ok) ok({ success: false, error: r.error.message }); return; }
                     // Update weekly_status for all rows with this custom_id where week_start >= cutDate
                     _supabase.from('weekly_status').update({ member_name: nameEn }).eq('member_id', customId).gte('week_start', cutDate).then(function(r2) {

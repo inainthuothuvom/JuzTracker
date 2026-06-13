@@ -64,6 +64,7 @@ function startHadiyaCountdown(deadlineISO) {
 }
 
 function openHadiyaEditModal() {
+    if (!isCurrentUserAdmin()) { showSnackbar("Only admins can edit Hadiya.", true); return; }
     var cur = currentHadiyaDetails && currentHadiyaDetails.current;
     if (!cur) return;
     document.getElementById('hadiyaEditNominee').innerHTML = cur.en + ' / ' + cur.ta + ' (' + cur.range + ')';
@@ -95,6 +96,7 @@ function openHadiyaEditDedication() {
     setTimeout(function() { openDedicationModal(); }, 200);
 }
 function saveHadiyaScheduleTimes() {
+    if (!isCurrentUserAdmin()) { showSnackbar("Only admins can edit Hadiya schedule.", true); return; }
     function getDL(id) { var v = document.getElementById(id).value; return v ? new Date(v).toISOString() : ''; }
     var deadlineStr = getDL('hadiyaDeadlineInput');
     var nextStr = getDL('hadiyaNextStartInput');
@@ -192,7 +194,7 @@ function displayHadiya(res) {
             ${cur.range}
             <a href="#" class="hadiya-nav-arrow" onclick="event.preventDefault(); navigateHadiya(1);" style="color:${accentColor};">&gt;</a>
         </div>
-        <a href="#" id="hadiyaEditBtn" class="hadiya-edit-btn" onclick="event.preventDefault(); openHadiyaEditModal();" style="color:${accentColor};">Edit / மாற்ற</a>
+        <a href="#" id="hadiyaEditBtn" class="hadiya-edit-btn" onclick="event.preventDefault(); openHadiyaEditModal();" style="color:${accentColor};${isCurrentUserAdmin() ? '' : 'display:none;'}">Edit / மாற்ற</a>
     </div>`;
 
     var hasDedication = cur.dedicatedTo && cur.dedicatedTo !== cur.en;
@@ -317,7 +319,9 @@ function displayHadiya(res) {
 
     var shareBtn = document.getElementById('hadiyaShareBtn');
     if (shareBtn) {
-        if (isCompleted) {
+        if (!isCurrentUserAdmin()) {
+            shareBtn.style.display = 'none';
+        } else if (isCompleted) {
             shareBtn.style.display = 'block';
             shareBtn.disabled = false;
             shareBtn.style.opacity = '1';
@@ -332,6 +336,7 @@ function displayHadiya(res) {
 }
 
 function updateHadiyaStatusUI(newStatus) {
+    if (!isCurrentUserAdmin()) { showSnackbar("Only admins can update Hadiya status.", true); return; }
     const dateVal = document.getElementById('dateInput').value;
     if (!dateVal) return;
     window.appApi.withSuccessHandler(function(r) {
@@ -348,6 +353,7 @@ var dedicationEntries = [];
 var isEditingDedication = false;
 
 function openDedicationModal() {
+    if (!isCurrentUserAdmin()) { showSnackbar("Only admins can manage dedications.", true); return; }
     document.getElementById('dedicationModal').style.display = "flex";
     dedicationEntries = [];
     isEditingDedication = false;
@@ -639,6 +645,7 @@ function closeDedicationModal() {
 }
 
 function saveDedication() {
+    if (!isCurrentUserAdmin()) { showSnackbar("Only admins can save dedications.", true); return; }
     var dateVal = document.getElementById('dateInput').value;
     if (!dateVal) { showSnackbar("Select a date first.", true); return; }
     if (!isEditingDedication) { showSnackbar("Click 'Edit' first to modify dedications.", true); return; }

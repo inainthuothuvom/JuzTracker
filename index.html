@@ -24,11 +24,24 @@
 
 <div class="container">
 
+    <div id="authBar" style="padding:10px 0; border-bottom:1px solid #30363d; margin-bottom:16px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+        <div id="loginForm" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <input type="email" id="loginEmail" placeholder="Email / மின்னஞ்சல்" style="background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#e6edf3;padding:8px 12px;font-size:0.85rem;font-family:inherit;width:180px;max-width:40vw;">
+            <input type="password" id="loginPassword" placeholder="Password / கடவுச்சொல்" style="background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#e6edf3;padding:8px 12px;font-size:0.85rem;font-family:inherit;width:160px;max-width:35vw;">
+            <button id="loginBtn" onclick="doLogin()" style="background:#1f6feb;border:none;border-radius:6px;color:#fff;padding:8px 16px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">Sign In / உள்நுழை</button>
+        </div>
+        <div id="userInfo" style="display:none; align-items:center; gap:10px; flex-wrap:wrap;">
+            <span id="userDisplayName" style="color:#e6edf3; font-weight:600; font-size:0.9rem;"></span>
+            <span id="userRoleBadge" style="font-size:0.7rem; padding:2px 8px; border-radius:10px; background:#1c2128; border:1px solid #30363d; color:#8b949e;"></span>
+            <button onclick="doLogout()" style="background:transparent;border:1px solid #30363d;border-radius:6px;color:#c9d1d9;padding:6px 14px;font-size:0.8rem;cursor:pointer;font-family:inherit;">Sign Out / வெளியேறு</button>
+        </div>
+    </div>
+
     <div class="hadiya-container" id="hadiyaBox" style="display:none;">
         <span class="hadiya-title">This Week's Hadiya <br> இந்த வார ஹதியா</span>
         <div id="hadCurrent" class="hadiya-main">Loading...</div>
         
-        <button id="hadiyaShareBtn" class="btn-hadiya-share" onclick="copyHadiyaNoteToClipboard()" style="margin-top:8px; width:100%; padding:10px; font-size:0.85rem;">
+        <button id="hadiyaShareBtn" class="btn-hadiya-share" onclick="copyHadiyaNoteToClipboard()" style="margin-top:8px; width:100%; padding:10px; font-size:0.85rem;" data-role="admin">
             Hadiya Note 📋
         </button>
         
@@ -66,7 +79,7 @@
         View Weekly Report <br> வாராந்திர அறிக்கை
     </button>
 
-    <button id="manageMembersBtn" class="btn-secondary" onclick="openMemberManager()" style="margin-top:8px; width:100%;">
+    <button id="manageMembersBtn" class="btn-secondary" onclick="openMemberManager()" style="margin-top:8px; width:100%;" data-role="admin">
         Manage Members <br> உறுப்பினர்கள்
     </button>
     
@@ -97,8 +110,8 @@
             <div class="status-header">
                 <h3>Status <br> நிலை</h3>
                 <div>
-                    <button class="btn-unlock" id="unlockBtn" onclick="enableStatusEditing()">Edit</button>
-                    <button class="btn-close-edit" id="closeEditBtn" onclick="cancelStatusEditing()">Close / ரத்து செய்</button>
+                    <button class="btn-unlock" id="unlockBtn" onclick="enableStatusEditing()" data-role="admin">Edit</button>
+                    <button class="btn-close-edit" id="closeEditBtn" onclick="cancelStatusEditing()" data-role="admin">Close / ரத்து செய்</button>
                 </div>
             </div>
             
@@ -108,8 +121,8 @@
                 <div class="support-header-row">
                     <div id="supportDetailsBanner"></div>
                     <div>
-                        <button class="btn-unlock-support" id="unlockSupportBtn" onclick="enableSupportStatusEditing()">Edit Support</button>
-                        <button class="btn-close-support-edit" id="closeSupportEditBtn" onclick="cancelSupportStatusEditing()">Close / ரத்து செய்</button>
+                        <button class="btn-unlock-support" id="unlockSupportBtn" onclick="enableSupportStatusEditing()" data-role="admin">Edit Support</button>
+                        <button class="btn-close-support-edit" id="closeSupportEditBtn" onclick="cancelSupportStatusEditing()" data-role="admin">Close / ரத்து செய்</button>
                     </div>
                 </div>
 
@@ -120,7 +133,7 @@
                     <input type="datetime-local" id="supportCustomTime">
                     <button class="time-reset-btn" onclick="resetCustomTime('support')">Now / இப்போது</button>
                 </div>
-                <div class="support-buttons-grid" id="supportButtonsGroup" style="display: none;">
+                <div class="support-buttons-grid" id="supportButtonsGroup" style="display: none;" data-role="admin">
                     <button class="btn-support-status-completed" id="supportCompletedBtn" onclick="submitSupportStatusDirect('Completed')">
                         Completed ✅
                     </button>
@@ -151,7 +164,7 @@
                 <input type="datetime-local" id="mainCustomTime">
                 <button class="time-reset-btn" onclick="resetCustomTime('main')">Now / இப்போது</button>
             </div>
-            <div class="status-buttons-container" id="statusButtonsGroup" style="display: none;">
+            <div class="status-buttons-container" id="statusButtonsGroup" style="display: none;" data-role="admin">
                 <button class="btn-status-completed" id="completedActionBtn" onclick="submitDirectStatus('Completed')">
                     Completed <br> நிறைவேற்றபட்டது ✓
                 </button>
@@ -241,7 +254,7 @@
     </div>
 </div></div>
 
-<div class="confirm-overlay" id="bulkStep2Overlay">
+<div class="confirm-overlay" id="bulkStep2Overlay" data-role="admin">
     <div class="confirm-box" style="max-width:380px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
             <h3 style="margin:0;color:#79c0ff;font-size:1rem;font-weight:600;">Bulk Update — Step 2</h3>
@@ -269,7 +282,7 @@
     </div>
 </div>
 
-<div class="confirm-overlay" id="bulkConfirmOverlay">
+<div class="confirm-overlay" id="bulkConfirmOverlay" data-role="admin">
     <div class="confirm-box">
         <h3>⚠️ Confirm</h3>
         <div id="bulkConfirmInfo" style="font-size:0.9rem; color:#c9d1d9; margin-bottom:8px;"></div>
@@ -281,7 +294,7 @@
     </div>
 </div>
 
-<div id="reportEditModal" class="modal">
+<div id="reportEditModal" class="modal" data-role="admin">
     <div class="modal-content" style="max-width:360px;">
         <div class="modal-header" style="border-bottom:none; margin-bottom:5px; padding-bottom:0;">
             <span class="modal-title" style="font-size:1rem; color:#79c0ff;">Update Status / நிலை மாற்ற</span>
@@ -305,7 +318,7 @@
     </div>
 </div>
 
-<div id="dedicationModal" class="modal">
+<div id="dedicationModal" class="modal" data-role="admin">
     <div class="modal-content" style="max-width:500px;max-height:80vh;overflow-y:auto;">
         <div class="modal-header" style="border-bottom:none; margin-bottom:5px; padding-bottom:0;">
             <span class="modal-title" style="font-size:1rem; color:#d29922;">🎯 Add Dedication <br> அர்ப்பணிப்பை சேர்க்க</span>
@@ -322,7 +335,7 @@
     </div>
 </div>
 
-<div id="hadiyaEditModal" class="modal">
+<div id="hadiyaEditModal" class="modal" data-role="admin">
     <div class="modal-content" style="max-width:380px;">
         <div class="modal-header" style="border-bottom:none; margin-bottom:5px; padding-bottom:0;">
             <span class="modal-title" style="font-size:1rem; color:#79c0ff;">Edit Hadiya / ஹதியாவை மாற்ற</span>
@@ -368,7 +381,7 @@
             </select>
         </div>
 
-        <button id="reassignBtn" onclick="submitReassignment()">
+        <button id="reassignBtn" onclick="submitReassignment()" data-role="admin">
             Assign Reciting Partner <br> உதவி வாசகரை நியமி
         </button>
         <button class="btn-secondary" style="margin-top:8px; padding:10px;" onclick="closeReassignModal()">
@@ -397,7 +410,7 @@
     </div>
 </div>
 
-<div id="memberManagerModal" class="modal">
+<div id="memberManagerModal" class="modal" data-role="admin">
     <div class="modal-content" style="max-width:420px;">
         <div class="modal-header" style="border-bottom:none; margin-bottom:5px; padding-bottom:0;">
             <span class="modal-title" style="font-size:1rem; color:#79c0ff;">Manage Members / உறுப்பினர்கள்</span>

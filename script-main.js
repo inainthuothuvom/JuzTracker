@@ -30,6 +30,54 @@ let fetchedStateCache = null;
 
 let userListData = [];
 
+function doLogin() {
+    var email = document.getElementById('loginEmail').value.trim();
+    var password = document.getElementById('loginPassword').value;
+    if (!email || !password) { showSnackbar("Please enter email and password.", true); return; }
+    var btn = document.getElementById('loginBtn');
+    btn.disabled = true;
+    btn.innerText = "Signing in...";
+    window.appApi.withSuccessHandler(function(user) {
+        btn.disabled = false;
+        btn.innerHTML = 'Sign In / உள்நுழை';
+        if (user) {
+            updateAuthUI(user);
+            showSnackbar("Signed in as " + (user.name_en || email), false);
+        } else {
+            showSnackbar("Invalid email or password.", true);
+        }
+    }).withFailureHandler(function(err) {
+        btn.disabled = false;
+        btn.innerHTML = 'Sign In / உள்நுழை';
+        showSnackbar("Login failed: " + (err.message || 'Error'), true);
+    }).signIn(email, password);
+}
+
+function doLogout() {
+    clearSession();
+    updateAuthUI(null);
+    showSnackbar("Signed out.", false);
+}
+
+function updateAuthUI(user) {
+    if (!user) user = getSession();
+    var loginForm = document.getElementById('loginForm');
+    var userInfo = document.getElementById('userInfo');
+    if (user && user.role) {
+        loginForm.style.display = 'none';
+        userInfo.style.display = 'flex';
+        document.getElementById('userDisplayName').innerText = user.name_en || user.name_ta || user.email || '';
+        document.getElementById('userRoleBadge').innerText = user.role === 'admin' ? 'Admin' : 'User';
+        document.getElementById('userRoleBadge').style.borderColor = user.role === 'admin' ? '#58a6ff' : '#30363d';
+        document.getElementById('userRoleBadge').style.color = user.role === 'admin' ? '#58a6ff' : '#8b949e';
+        document.body.classList.toggle('is-admin', user.role === 'admin');
+    } else {
+        loginForm.style.display = 'flex';
+        userInfo.style.display = 'none';
+        document.body.classList.remove('is-admin');
+    }
+}
+
 function refreshUserDropdown(dateVal) {
     const prevId = document.getElementById('userSelect').value;
     window.appApi.withSuccessHandler(function(users) {
@@ -53,6 +101,7 @@ function refreshUserDropdown(dateVal) {
 }
 
 window.onload = function() {
+    updateAuthUI();
     (function(){var now=new Date();var IST_MS=5.5*3600000;var ist=new Date(now.getTime()+now.getTimezoneOffset()*60000+IST_MS);var p=function(n){return String(n).padStart(2,'0')};document.getElementById('dateInput').value=ist.getFullYear()+'-'+p(ist.getMonth()+1)+'-'+p(ist.getDate())+'T'+p(ist.getHours())+':'+p(ist.getMinutes());})();
     const today = document.getElementById('dateInput').value;
     refreshUserDropdown(today);
@@ -255,6 +304,7 @@ function configureStatusEditLock(statusVal, resData) {
 }
 
 function enableStatusEditing() {
+    if (!isCurrentUserAdmin()) { showSnackbar("Only admins can edit status.", true); return; }
     if (isPastNextHadiyaStart()) {
         showSnackbar("Next Hadiya has started. Status updates are locked.", true);
         return;
@@ -290,6 +340,7 @@ function cancelStatusEditing() {
 }
 
 function enableSupportStatusEditing() {
+    if (!isCurrentUserAdmin()) { showSnackbar("Only admins can edit support status.", true); return; }
     if (isPastNextHadiyaStart()) {
         showSnackbar("Next Hadiya has started. Support status updates are locked.", true);
         return;
@@ -487,6 +538,7 @@ function submitQuery() {
 }
 
 function submitDirectStatus(statusVal) {
+    if (!isCurrentUserAdmin()) { showSnackbar("Only admins can update status.", true); return; }
     const id = document.getElementById('userSelect').value;
     const dateInputVal = document.getElementById('dateInput').value;
     const weekVal = (currentHadiyaDetails && currentHadiyaDetails.weekStart) || dateInputVal;
@@ -548,6 +600,7 @@ function submitDirectStatus(statusVal) {
 }
 
 function submitSupportStatusDirect(newSupStatus) {
+    if (!isCurrentUserAdmin()) { showSnackbar("Only admins can update support status.", true); return; }
     if (isPastNextHadiyaStart()) {
         showSnackbar("Next Hadiya has started. Support status updates are locked.", true);
         return;
@@ -637,6 +690,7 @@ function closeSupportAssignmentModal() {
 }
 
 function openReassignModal() {
+    if (!isCurrentUserAdmin()) { showSnackbar("Only admins can assign support readers.", true); return; }
     const modal = document.getElementById('reassignModal');
     const select = document.getElementById('supportUserSelect');
     const metaText = document.getElementById('reassignMetaText');
@@ -669,6 +723,7 @@ function openReassignModal() {
 }
 
 function submitReassignment() {
+    if (!isCurrentUserAdmin()) { showSnackbar("Only admins can assign support readers.", true); return; }
     if (isPastNextHadiyaStart()) {
         showSnackbar("Next Hadiya has started. Reassignment is locked.", true);
         return;
@@ -728,6 +783,7 @@ function openReassignFromReport(userId, juzNum, rawName) {
 var memberListData = [];
 
 function openMemberManager() {
+    if (!isCurrentUserAdmin()) { showSnackbar("Only admins can manage members.", true); return; }
     document.getElementById('memberManagerModal').style.display = 'flex';
     document.getElementById('memberFormFields').style.display = 'none';
     document.getElementById('memberSelectId').value = '';
@@ -856,6 +912,6 @@ function saveMember() {
             else showSnackbar("Error: " + (r.error || 'unknown'), true);
         }).withFailureHandler(function(e) {
             showSnackbar("Add failed: " + (e.message || e || 'unknown'), true);
-        }).addMember(nameEn, nameTa, replaced.custom_id, effDate);
+        }).addMember(nameEn, nameTa, replaced.custom_id, effDate, null, null, null, null);
     }
 }

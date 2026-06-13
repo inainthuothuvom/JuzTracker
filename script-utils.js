@@ -105,6 +105,30 @@ function formatDisplayDate(dateStr) {
     return dateStr;
 }
 
+function simpleHash(str) {
+    var hash = 0, i, chr;
+    if (str.length === 0) return 'h_0';
+    for (i = 0; i < str.length; i++) {
+        chr = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + chr;
+        hash |= 0;
+    }
+    return 'h_' + Math.abs(hash).toString(36);
+}
+function getSession() {
+    try { return JSON.parse(localStorage.getItem('juztracker_session')); } catch(e) { return null; }
+}
+function setSession(user) {
+    localStorage.setItem('juztracker_session', JSON.stringify(user));
+}
+function clearSession() {
+    localStorage.removeItem('juztracker_session');
+}
+function isCurrentUserAdmin() {
+    var s = getSession();
+    return s && s.role === 'admin';
+}
+
 function formatDisplayDateParts(dateStr) {
     if (!dateStr) return null;
     const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];

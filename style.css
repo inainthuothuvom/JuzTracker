@@ -692,3 +692,7 @@
         .btn-confirm-yes:hover { background: #388bfd; }
         .btn-confirm-no { background: #21262d; color: #c9d1d9; }
         .btn-confirm-no:hover { background: #30363d; }
+        
+        body:not(.is-admin) [data-role="admin"] {
+            display: none !important;
+        }
