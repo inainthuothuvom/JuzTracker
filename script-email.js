@@ -17,6 +17,14 @@
  *    - {{action_type}} - Type of action (completed, exception, support_assigned, etc.)
  *    - {{support_reader}} - Support reader name (if applicable)
  * 4. Replace YOUR_SERVICE_ID, YOUR_TEMPLATE_ID, YOUR_PUBLIC_KEY below
+ * 
+ * === Forgot Password OTP Template ===
+ * Create another EmailJS template with these variables:
+ *    {{to_email}} - Recipient email
+ *    {{otp}} - 6-digit OTP code
+ *    {{user_name}} - User's English name
+ *    {{expiry}} - OTP expiry in minutes (e.g. 10)
+ * Then update sendOtpEmail() function below with the new template ID
  */
 
 (function() {
@@ -423,6 +431,28 @@
         });
     }
 
+    /**
+     * Send OTP email for forgot password
+     * EmailJS template variables needed:
+     *   {{to_email}}   - Recipient email
+     *   {{otp}}        - 6-digit OTP code
+     *   {{user_name}}  - User's name (English)
+     *   {{expiry}}     - Expiry time in minutes
+     * 
+     * Create a new EmailJS template (or use any existing one) with these variables.
+     * Update the templateId below after creating it in EmailJS Dashboard.
+     */
+    function sendOtpEmail(email, userName, otpCode) {
+        var templateParams = {
+            to_email: email,
+            user_name: userName || 'User',
+            otp: otpCode,
+            expiry: '10'
+        };
+        var otpTemplateId = 'template_j5w4t0k';
+        return sendEmail(templateParams, otpTemplateId);
+    }
+
     // ==================== PUBLIC API ====================
     window.EmailService = {
         // Initialize EmailJS
@@ -432,6 +462,7 @@
         sendAdminNotification: sendAdminNotification,
         sendToSelectMembers: sendToSelectMembers,
         sendEmail: sendEmail,
+        sendOtpEmail: sendOtpEmail,
 
         // Convenience functions
         sendCompletedNotification: sendCompletedNotification,

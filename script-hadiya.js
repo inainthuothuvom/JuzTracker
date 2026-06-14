@@ -212,7 +212,6 @@ function goToCurrentWeek() {
 
 function hideHadiya() {
     document.getElementById('hadiyaBox').style.display = "none";
-    document.getElementById('hadiyaMenuBar').style.display = "none";
     var shareBtn = document.getElementById('hadiyaShareBtn');
     if (shareBtn) { shareBtn.style.display = 'none'; }
 }
@@ -228,7 +227,6 @@ function displayHadiya(res) {
         return;
     }
     hadiyaBox.style.display = "block";
-    document.getElementById('hadiyaMenuBar').style.display = "block";
     currentHadiyaDetails = res;
     
     var cur = res.current;

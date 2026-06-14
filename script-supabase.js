@@ -13,7 +13,7 @@
                 _supabase.from('members').select('id,custom_id,name_en,name_ta,effective_date').order('custom_id', { ascending: true }).then(function(r) {
                     if (r.error) { if (err) err(r.error); else console.error(r.error); return; }
                     var active = selectedDate ? filterActiveMembers(r.data, selectedDate) : r.data;
-                    var out = active.map(function(u) { return { id: u.id, arabic: '', english: u.name_en||'', tamil: u.name_ta||'', effective_date: u.effective_date||null }; });
+                    var out = active.map(function(u) { return { id: u.id, custom_id: u.custom_id, arabic: '', english: u.name_en||'', tamil: u.name_ta||'', effective_date: u.effective_date||null }; });
                     if (ok) ok(out);
                 });
                 return this;
@@ -526,12 +526,13 @@ var result = {
                         var nameEn = customId;
                         if (existing) nameEn = existing.member_name || customId;
                         var timestamp = (customTimestamp && customTimestamp.trim()) ? customTimestamp.trim() : formatCurrentTimestamp();
-                        var updaterEmail = 'Web User (Supabase)';
-                        var oldStatus = existing ? existing.status : 'Not Started';
+                    var cu = window.currentUser ? window.currentUser() : null;
+                    var updaterEmail = cu ? (cu.name || 'Unknown') + ' (' + (cu.email || 'no-email') + ')' : 'Web User (Supabase)';
+                    var oldStatus = existing ? existing.status : 'Not Started';
                         if (existing && existing.status === statusUpdate && !(customTimestamp && customTimestamp.trim())) {
                             if (ok) ok({ success: true, noChange: true }); return;
                         }
-                        // Determine juz_number: use existing or compute dynamically
+                        // Authorization check for non-admin users
                         function doUpsert(juzNum) {
                             var upsertData = {
                                 week_start: monday, member_id: customId, member_name: nameEn, juz_number: juzNum,
@@ -581,8 +582,11 @@ var result = {
                                                 actionType: statusUpdate === 'Completed' ? 'completed' : statusUpdate === 'Exception Raised' ? 'exception' : 'status_changed',
                                                 timestamp: timestamp
                                             };
-                                            if (false && typeof EmailService !== 'undefined') {
-                                                EmailService.sendAdminNotification(emailData);
+                                            if (window.AppNotifications) {
+                                                var nTitle = statusUpdate + ' - ' + enName + ' | ' + taName;
+                                                var nBody = 'Juz ' + juzNum + ' | Week ' + formatDateDDMMMYYYY(monday) + ' | ' + oldStatus + ' → ' + statusUpdate;
+                                                var nBodyTa = 'ஜுஸ் ' + juzNum + ' | வாரம் ' + formatDateDDMMMYYYY(monday) + ' | ' + oldStatus + ' → ' + statusUpdate;
+                                                window.AppNotifications.insert(nTitle, nBody + '\n' + nBodyTa, '', 'admin');
                                             }
                                         });
                                     } catch(emailErr) {
@@ -593,10 +597,32 @@ var result = {
                                 if (ok) ok({ success: true });
                             });
                         }
+                        // Non-admins can only update the current week
+                        if (cu && cu.role !== 'admin') {
+                            var currentWeek = normalizeToWeekStart(new Date());
+                            if (monday !== currentWeek) { if (ok) ok({ success: false, error: 'You can only update the current week.' }); return; }
+                        }
+                        // Authorize: non-admin can only update own record or supported record
+                        if (cu && cu.role !== 'admin' && cu.customId !== customId) {
+                            var _isSup = existing && String(existing.supported_by_id).length > 0;
+                            if (_isSup) {
+                                _supabase.from('members').select('id').eq('custom_id', cu.customId).maybeSingle().then(function(rMid) {
+                                    if (!rMid.data || String(existing.supported_by_id) !== String(rMid.data.id)) {
+                                        if (ok) ok({ success: false, error: 'Unauthorized' }); return;
+                                    }
+                                    if (existing && existing.juz_number) { doUpsert(existing.juz_number); } else { computeAndUpsert(); }
+                                });
+                                return;
+                            } else {
+                                if (ok) ok({ success: false, error: 'Unauthorized' }); return;
+                            }
+                        }
                         if (existing && existing.juz_number) {
                             doUpsert(existing.juz_number);
                         } else {
-                            // No existing record — compute juz number dynamically
+                            computeAndUpsert();
+                        }
+                        function computeAndUpsert() {
                             var seq = parseInt(customId.replace(/[^0-9]/g, ''), 10);
                             _supabase.from('weekly_status').select('week_start').order('week_start', { ascending: true }).limit(1).then(function(rFirst) {
                                 var baseDate;
@@ -633,8 +659,24 @@ var result = {
                         var existing = rGet.data;
                         if (!existing) { if (ok) ok({ success: false, error: 'Record not found' }); return; }
                         var timestamp = (customTimestamp && customTimestamp.trim()) ? customTimestamp.trim() : formatCurrentTimestamp();
-                        var updaterEmail = 'Web User (Supabase)';
+                        var cu = window.currentUser ? window.currentUser() : null;
+                        var updaterEmail = cu ? (cu.name || 'Unknown') + ' (' + (cu.email || 'no-email') + ')' : 'Web User (Supabase)';
                         var oldSupStatus = existing.support_status || 'None';
+                        // Non-admins can only update the current week
+                        if (cu && cu.role !== 'admin') {
+                            var currentWeek = normalizeToWeekStart(new Date());
+                            if (monday !== currentWeek) { if (ok) ok({ success: false, error: 'You can only update the current week.' }); return; }
+                            // Non-admins must be the support reader on this record
+                            _supabase.from('members').select('id').eq('custom_id', cu.customId).maybeSingle().then(function(rMid) {
+                                if (!rMid.data || String(existing.supported_by_id) !== String(rMid.data.id)) {
+                                    if (ok) ok({ success: false, error: 'Unauthorized' }); return;
+                                }
+                                doSupportUpdate();
+                            });
+                            return;
+                        }
+                        doSupportUpdate();
+                        function doSupportUpdate() {
                         // Update support_status and completed_date_time
                         var updateData = { support_status: newSupportStatus };
                         if (newSupportStatus === 'Completed') updateData.completed_date_time = timestamp;
@@ -680,8 +722,11 @@ var result = {
                                             supportReaderTamil: supTaName,
                                             timestamp: timestamp
                                         };
-                                        if (typeof EmailService !== 'undefined') {
-                                            EmailService.sendAdminNotification(emailData);
+                                        if (window.AppNotifications) {
+                                            var nTitle = (existing.status === 'Exception Raised' ? 'Support ' + newSupportStatus : 'Status Update') + ' - ' + enName + ' | ' + (typeof readerTaName !== 'undefined' ? readerTaName : '');
+                                            var nBody = 'Juz ' + juzNum + ' | Week ' + formatDateDDMMMYYYY(monday) + (existing.status === 'Exception Raised' ? ' | Support: ' + supEnName : '');
+                                            var nBodyTa = 'ஜுஸ் ' + juzNum + ' | வாரம் ' + formatDateDDMMMYYYY(monday) + (existing.status === 'Exception Raised' ? ' | உதவி: ' + (typeof supTaName !== 'undefined' ? supTaName : supEnName) : '');
+                                            window.AppNotifications.insert(nTitle, nBody + '\n' + nBodyTa, '', 'admin');
                                         }
                                     });
                                 } catch(emailErr) {
@@ -691,6 +736,7 @@ var result = {
                             
                             if (ok) ok({ success: true });
                         });
+                    }
                     });
                     return this;
                 } catch(err) { if (ok) ok({ success: false, error: err.toString() }); }
@@ -718,7 +764,8 @@ var result = {
                             var existing = rGet.data;
                             if (!existing) { if (ok) ok({ success: false, error: 'Record not found' }); return; }
                             var timestamp = formatCurrentTimestamp();
-                            var updaterEmail = 'Web User (Supabase)';
+                            var cu = window.currentUser ? window.currentUser() : null;
+                            var updaterEmail = cu ? (cu.name || 'Unknown') + ' (' + (cu.email || 'no-email') + ')' : 'Web User (Supabase)';
                             var updateData = {
                                 supported_by_name: supName,
                                 supported_by_id: supportUserId,
@@ -752,8 +799,11 @@ var result = {
                                             supportReaderTamil: supTaName,
                                             timestamp: timestamp
                                         };
-                                        if (false && typeof EmailService !== 'undefined') {
-                                            EmailService.sendAdminNotification(emailData);
+                                        if (window.AppNotifications) {
+                                            var nTitle = 'Support Assigned - ' + enName + ' | ' + taName;
+                                            var nBody = 'Juz ' + (existing.juz_number || '-') + ' | Week ' + formatDateDDMMMYYYY(monday) + ' | Support: ' + supEnName;
+                                            var nBodyTa = 'ஜுஸ் ' + (existing.juz_number || '-') + ' | வாரம் ' + formatDateDDMMMYYYY(monday) + ' | உதவி: ' + supTaName;
+                                            window.AppNotifications.insert(nTitle, nBody + '\n' + nBodyTa, '', 'admin');
                                         }
                                     });
                                 } catch(emailErr) {

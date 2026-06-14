@@ -29,20 +29,59 @@ let sortAsc = true;
 let fetchedStateCache = null;
 
 let userListData = [];
+let allowedUserData = [];
 
 function refreshUserDropdown(dateVal) {
     const prevId = document.getElementById('userSelect').value;
+    var cu = window.currentUser ? window.currentUser() : null;
     window.appApi.withSuccessHandler(function(users) {
         userListData = users;
-        const dropdown = document.getElementById('userDropdown');
-        dropdown.innerHTML = users.map(u =>
-            `<div class="opt" data-id="${u.id}" onmousedown="selectUserOption('${u.id}','${(u.english + ' | ' + u.tamil).replace(/'/g, "\\'")}')">${u.english} | ${u.tamil}</div>`
-        ).join('');
-        // Keep previously selected member if still active
-        if (prevId) {
-            var stillExists = users.some(function(u) { return String(u.id) === prevId; });
-            if (!stillExists) {
+        var allIds = {};
+        users.forEach(function(u) { allIds[u.id] = true; });
+        if (cu && cu.role !== 'admin') {
+            var myMember = users.filter(function(u) { return String(u.custom_id) === String(cu.customId); });
+            var myMemberId = myMember.length > 0 ? myMember[0].id : null;
+            var allowed = myMember.slice();
+            if (myMemberId) {
+                var monday = normalizeToWeekStart(dateVal);
+                _supabase.from('weekly_status').select('member_id').eq('week_start', monday).eq('supported_by_id', myMemberId).then(function(rSup) {
+                    if (rSup.data) {
+                        var supIds = {};
+                        rSup.data.forEach(function(s) { supIds[s.member_id] = true; });
+                        allowed = allowed.concat(users.filter(function(u) { return supIds[u.custom_id]; }));
+                    }
+                    allowedUserData = allowed;
+                    var allowedIds = {};
+                    allowed.forEach(function(a) { allowedIds[a.id] = true; });
+                    applyDropdown(allowed, allowedIds);
+                    autoSelectMember(myMember);
+                });
+            } else {
+                allowedUserData = allowed;
+                applyDropdown(users, {});
+            }
+        } else {
+            allowedUserData = users;
+            applyDropdown(users, allIds);
+        }
+        function applyDropdown(filtered, validIds) {
+            const dropdown = document.getElementById('userDropdown');
+            dropdown.innerHTML = filtered.map(u =>
+                `<div class="opt" data-id="${u.id}" onmousedown="selectUserOption('${u.id}','${(u.english + ' | ' + u.tamil).replace(/'/g, "\\'")}')">${u.english} | ${u.tamil}</div>`
+            ).join('');
+            if (prevId && validIds[prevId]) {
+                document.getElementById('userSelect').value = prevId;
+            } else {
                 document.getElementById('userSelect').value = '';
+            }
+        }
+        function autoSelectMember(members) {
+            if (members && members.length > 0) {
+                var m = members[0];
+                var display = m.english + ' | ' + m.tamil;
+                document.getElementById('userSearch').value = display;
+                document.getElementById('userSelect').value = m.id;
+                document.getElementById('submitBtn').disabled = false;
             }
         }
     }).withFailureHandler(function(err) {
@@ -50,6 +89,16 @@ function refreshUserDropdown(dateVal) {
         var msg = (err && err.message) ? err.message : (typeof err === 'string' ? err : 'Failed to load users. Is the database missing the effective_date column?');
         showSnackbar('Error loading users: ' + msg, true);
     }).getUserList(dateVal);
+}
+
+function goToCurrentWeek() {
+    var now = new Date();
+    var IST_MS = 5.5 * 3600000;
+    var ist = new Date(now.getTime() + now.getTimezoneOffset() * 60000 + IST_MS);
+    var p = function(n) { return String(n).padStart(2, '0'); };
+    var val = ist.getFullYear() + '-' + p(ist.getMonth() + 1) + '-' + p(ist.getDate()) + 'T' + p(ist.getHours()) + ':' + p(ist.getMinutes());
+    document.getElementById('dateInput').value = val;
+    resetAssignmentDetails();
 }
 
 window.onload = function() {
@@ -100,6 +149,16 @@ function isSelectedDateInFuture() {
     today.setHours(0,0,0,0,0);
     
     return selectedDate > today;
+}
+
+function isNonAdminPastWeek() {
+    var cu = window.currentUser ? window.currentUser() : null;
+    if (cu && cu.role === 'admin') return false;
+    var selectedVal = document.getElementById('dateInput').value;
+    if (!selectedVal) return false;
+    var selectedWeek = normalizeToWeekStart(selectedVal);
+    var currentWeek = normalizeToWeekStart(new Date());
+    return selectedWeek !== currentWeek;
 }
 
 function isPastNextHadiyaStart() {
@@ -166,9 +225,19 @@ function configureStatusEditLock(statusVal, resData) {
 
     futureLockBanner.style.display = "none";
     
+    if (isNonAdminPastWeek()) {
+        unlockLink.style.display = "none";
+        unlockSupportLink.style.display = "none";
+        buttonsGroup.style.display = "none";
+        supportBtnsGroup.style.display = "none";
+        return;
+    }
+
     if (isPastNextHadiyaStart()) {
         unlockLink.style.display = "none";
+        unlockSupportLink.style.display = "none";
         buttonsGroup.style.display = "none";
+        supportBtnsGroup.style.display = "none";
         textDisplay.style.display = "none";
         mainSupportWidget.style.display = "none";
         if (nextHadiyaLockBanner) {
@@ -326,7 +395,9 @@ function closeUserDropdown() {
 function filterUserOptions() {
     const q = document.getElementById('userSearch').value.toLowerCase();
     const dropdown = document.getElementById('userDropdown');
-    const filtered = userListData.filter(u =>
+    var cu = window.currentUser ? window.currentUser() : null;
+    var source = (cu && cu.role !== 'admin' && allowedUserData.length > 0) ? allowedUserData : userListData;
+    const filtered = source.filter(u =>
         (u.english + ' | ' + u.tamil).toLowerCase().includes(q)
     );
     if (filtered.length === 0) {

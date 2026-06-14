@@ -57,7 +57,7 @@ function openReportModal() {
 let reportEditUserId = null;
 
 function openReportEditModal(userId, name, currentStatus, dateLogged) {
-    if (!reportIsEditable) {
+    if (!reportIsEditable || !window._isAdmin) {
         showSnackbar("Status updates are locked for this week.", true);
         return;
     }
@@ -81,7 +81,7 @@ function submitReportEditStatus(newStatus) {
     if (!reportEditUserId) return;
     if (!rawReportData) return;
     
-    if (!reportIsEditable) {
+    if (!reportIsEditable || !window._isAdmin) {
         showSnackbar("Status updates are locked for this week.", true);
         return;
     }
@@ -204,7 +204,7 @@ function updateBulkApplyBtn() {
 function openBulkStep2() {
     if (selectedUserIds.size === 0) return;
     if (!rawReportData) return;
-    if (!reportIsEditable) {
+    if (!reportIsEditable || !window._isAdmin) {
         showSnackbar("Status updates are locked for this week.", true);
         return;
     }
@@ -240,7 +240,7 @@ function selectBulkStatus(status) {
 }
 function openBulkConfirm() {
     if (!rawReportData) return;
-    if (!reportIsEditable) {
+    if (!reportIsEditable || !window._isAdmin) {
         showSnackbar("Status updates are locked for this week.", true);
         return;
     }
@@ -345,7 +345,7 @@ function renderReportRows(items) {
         let taName = nameParts[1] ? `<span>${nameParts[1]}</span>` : '';
 
         let statusBadgeHtml = `<span class="badge ${badgeClass}">${resolvedStatus}</span>`;
-        if (reportIsEditable && row.userId && !bulkMode) {
+        if (reportIsEditable && window._isAdmin && row.userId && !bulkMode) {
             const rawStatus = row.status || "Not Started";
             const encName = row.name.replace(/'/g, "\\'");
             const encDate = (row.dateLogged || '').replace(/'/g, "\\'");
@@ -690,10 +690,10 @@ function copyHadiyaNoteToClipboard() {
     var previewScale = Math.min(1, (window.innerWidth - 40) / 480);
 
     var topBar = document.createElement('div');
-    topBar.style.cssText = 'width:480px;display:flex;justify-content:space-between;align-items:center;padding:10px 24px;box-sizing:border-box;';
+    topBar.style.cssText = 'width:480px;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 24px;box-sizing:border-box;';
     topBar.innerHTML =
-        '<button id="hadiyaCopyBtn" style="background:#1f6feb;color:#fff;border:none;border-radius:6px;padding:8px 18px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 1px 3px rgba(0,0,0,0.3);">Copy 📋</button>' +
-        '<button id="hadiyaCloseBtn" style="background:none;border:none;font-size:1.8rem;color:#8b949e;cursor:pointer;line-height:1;padding:0;margin-right:-4px;font-family:inherit;">&times;</button>';
+        '<button id="hadiyaCopyBtn" style="background:#1f6feb;color:#fff;border:none;border-radius:6px;padding:8px 18px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 1px 3px rgba(0,0,0,0.3);' + (window._isAdmin ? '' : 'display:none;') + '">Copy 📋</button>' +
+        '<button id="hadiyaCloseBtn" style="background:#da3633;color:#fff;border:none;border-radius:6px;padding:8px 18px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">Close</button>';
 
     var previewWrap = document.createElement('div');
     previewWrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;';
@@ -738,6 +738,7 @@ function copyHadiyaNoteToClipboard() {
     };
 
     document.getElementById('hadiyaCopyBtn').onclick = function() {
+        if (!window._isAdmin) { showSnackbar("Only admins can copy.", true); return; }
         var btn = this;
         btn.disabled = true;
         btn.innerText = "Rendering...";
