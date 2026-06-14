@@ -230,6 +230,21 @@ function configureStatusEditLock(statusVal, resData) {
         unlockSupportLink.style.display = "none";
         buttonsGroup.style.display = "none";
         supportBtnsGroup.style.display = "none";
+        mainSupportWidget.style.display = "none";
+        if (mainTimeToggle) { mainTimeToggle.style.display = 'none'; mainTimeRow.style.display = 'none'; mainTimeToggle.classList.remove('active'); }
+        if (supportTimeToggle) { supportTimeToggle.style.display = 'none'; supportTimeRow.style.display = 'none'; supportTimeToggle.classList.remove('active'); }
+        if (!statusVal || statusVal === "Not Started") {
+            textDisplay.innerText = "Not Started \n தொடங்கப்படவில்லை";
+            textDisplay.style.display = "block";
+            updateStatusBoxColorByValue("Reciting");
+        } else if (statusVal === "Reciting" || statusVal === "Completed" || statusVal === "Exception Raised") {
+            var txt = statusVal === "Reciting" ? "Reciting \n ஓதிக்கொண்டிருக்கிறேன் 🔄" : statusVal === "Completed" ? "Completed \n நிறைவேற்றப்பட்டது ✅" : "Exception Raised \n விதிவிலக்கு ⚠️";
+            textDisplay.innerText = txt;
+            textDisplay.style.display = "block";
+            updateStatusBoxColorByValue(statusVal);
+        } else {
+            updateStatusBoxColorByValue(statusVal);
+        }
         return;
     }
 
@@ -610,7 +625,11 @@ function submitDirectStatus(statusVal) {
                 }
             } else {
                 showSnackbar("Status updated successfully!", false);
-                // Email notification is handled inside script-supabase.js -> updateWeeklyStatus()
+                setTimeout(function() {
+                    submitQuery();
+                    fetchHadiyaDetails(dateInputVal);
+                    if (typeof fetchAndRenderReport === 'function') fetchAndRenderReport(dateInputVal);
+                }, 300);
             }
         } else {
             showSnackbar("Failed to update status: " + response.error, true);
