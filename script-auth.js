@@ -187,15 +187,19 @@
         document.getElementById('resetPasswordSignOutConfirmModal').style.display = 'flex';
     }
 
-    function confirmResetPasswordSignOut() {
+    function closeResetPasswordSignOutConfirmModal() {
         document.getElementById('resetPasswordSignOutConfirmModal').style.display = 'none';
+    }
+
+    function confirmResetPasswordSignOut() {
+        closeResetPasswordSignOutConfirmModal();
         closeResetPasswordModal();
         clearSession();
         location.reload();
     }
 
     function cancelResetPasswordSignOut() {
-        document.getElementById('resetPasswordSignOutConfirmModal').style.display = 'none';
+        closeResetPasswordSignOutConfirmModal();
     }
 
     function handleResetPassword() {
@@ -522,6 +526,9 @@
     window.closeResetPasswordModal = closeResetPasswordModal;
     window.handleResetPassword = handleResetPassword;
     window.handleResetPasswordSignOut = handleResetPasswordSignOut;
+    window.closeResetPasswordSignOutConfirmModal = closeResetPasswordSignOutConfirmModal;
+    window.confirmResetPasswordSignOut = confirmResetPasswordSignOut;
+    window.cancelResetPasswordSignOut = cancelResetPasswordSignOut;
     window.openForgotPasswordModal = openForgotPasswordModal;
     window.closeForgotPasswordModal = closeForgotPasswordModal;
     window.handleForgotSendOtp = handleForgotSendOtp;

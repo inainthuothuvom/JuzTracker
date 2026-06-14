@@ -585,6 +585,23 @@
     </div>
 </div>
 
+<div id="resetPasswordSignOutConfirmModal" class="confirm-overlay">
+    <div class="confirm-box" style="max-width:380px;">
+        <div style="display:flex;justify-content:flex-end;">
+            <span onclick="closeResetPasswordSignOutConfirmModal()" style="font-size:1.4rem;color:#8b949e;cursor:pointer;line-height:1;">&times;</span>
+        </div>
+        <h3>Cancel Password Reset?</h3>
+        <div class="confirm-list">
+            You are signing in for the first time and have not set a new password yet. If you cancel now, you will be signed out and asked to sign in again.<br><br>
+            முதல் முறை உள்நுழைவதால் புதிய கடவுச்சொல்லை இன்னும் அமைக்கவில்லை. இப்போது ரத்து செய்தால், வெளியேற்றப்பட்டு மீண்டும் உள்நுழைய வேண்டும்.
+        </div>
+        <div class="confirm-actions">
+            <button class="btn-confirm-no" onclick="cancelResetPasswordSignOut()">Stay Here<br>இங்கேயே இரு</button>
+            <button class="btn-confirm-yes" onclick="confirmResetPasswordSignOut()">Sign Out<br>வெளியேறு</button>
+        </div>
+    </div>
+</div>
+
 <!-- ===== FORGOT PASSWORD MODAL ===== -->
 <div id="forgotPasswordModal" class="modal">
     <div class="modal-content auth-modal-content">
