@@ -668,7 +668,9 @@
     </div>
     <!-- EmailJS for email notifications -->
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
-    <script src="config.js"></script>
+    <script>
+        window.GROQ_KEY = '';
+    </script>
     <script src="script-email.js"></script>
     <script src="script-utils.js"></script>
     <script src="script-supabase.js"></script>

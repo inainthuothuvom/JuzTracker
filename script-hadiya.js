@@ -667,6 +667,11 @@ function toggleIntentionFields(idx) {
 }
 
 function translateField(idx, field, direction) {
+    if (!window.GROQ_KEY) {
+        showSnackbar("Translation is not configured. / மொழிபெயர்ப்பு கிடைக்கவில்லை", true);
+        return;
+    }
+
     var prefix = field === 'Name' ? 'dedName' : 'dedPurpose';
     var srcId = prefix + (direction === 'toTa' ? 'En' : 'Ta') + idx;
     var tgtId = prefix + (direction === 'toTa' ? 'Ta' : 'En') + idx;
@@ -688,7 +693,7 @@ function translateField(idx, field, direction) {
 
     fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + GROQ_KEY },
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + window.GROQ_KEY },
         body: JSON.stringify({
             model: 'llama-3.3-70b-versatile',
             messages: [{ role: 'user', content: prompt }],
