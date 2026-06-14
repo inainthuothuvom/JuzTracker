@@ -274,7 +274,7 @@ function displayHadiya(res) {
     var nomSize = hasDedication ? '0.85rem' : '1rem';
     var nameCol = `<div class="hadiya-name-col">
         <div style="font-size:${nomSize}; font-weight:600; color:#e6edf3;">${cur.en}</div>
-        <div style="font-size:0.75rem; color:#8b949e;">${cur.ta}</div>
+        <div style="font-size:0.75rem; color:#8b949e; font-weight:600;">${cur.ta}</div>
     </div>`;
 
     var counterCol = '';
@@ -372,7 +372,7 @@ function displayHadiya(res) {
         document.getElementById('hadPrev').innerHTML = 
             `<b style="font-size:0.65rem;">${res.previous.range}</b><br>` +
             `${res.previous.en}<br>` +
-            `<span style="font-size:0.65rem; color:#8b949e;">${res.previous.ta}</span>`;
+            `<span style="font-size:0.65rem; color:#8b949e; font-weight:600;">${res.previous.ta}</span>`;
     } else {
         prevSec.style.display = "none";
     }
@@ -383,7 +383,7 @@ function displayHadiya(res) {
         document.getElementById('hadNext').innerHTML = 
             `<b style="font-size:0.65rem;">${res.next.range}</b><br>` +
             `${res.next.en}<br>` +
-            `<span style="font-size:0.65rem; color:#8b949e;">${res.next.ta}</span>`;
+            `<span style="font-size:0.65rem; color:#8b949e; font-weight:600;">${res.next.ta}</span>`;
     } else {
         nextSec.style.display = "none";
     }

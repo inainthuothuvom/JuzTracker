@@ -183,6 +183,21 @@
         document.getElementById('resetPasswordModal').style.display = 'none';
     }
 
+    function handleResetPasswordSignOut() {
+        document.getElementById('resetPasswordSignOutConfirmModal').style.display = 'flex';
+    }
+
+    function confirmResetPasswordSignOut() {
+        document.getElementById('resetPasswordSignOutConfirmModal').style.display = 'none';
+        closeResetPasswordModal();
+        clearSession();
+        location.reload();
+    }
+
+    function cancelResetPasswordSignOut() {
+        document.getElementById('resetPasswordSignOutConfirmModal').style.display = 'none';
+    }
+
     function handleResetPassword() {
         var newPass = document.getElementById('resetNewPassword').value;
         var confirmPass = document.getElementById('resetConfirmPassword').value;
@@ -193,6 +208,16 @@
 
         _supabase.from('users').update({ password: newPass, first_login: false }).eq('id', currentUser.id).then(function(r) {
             if (r.error) { errorEl.textContent = 'Failed to reset password. Try again.'; return; }
+            currentUser.firstLogin = false;
+            saveSession(currentUser);
+            closeResetPasswordModal();
+            location.reload();
+        });
+    }
+
+    function handleSkipResetPassword() {
+        _supabase.from('users').update({ first_login: false }).eq('id', currentUser.id).then(function(r) {
+            if (r.error) { return; }
             currentUser.firstLogin = false;
             saveSession(currentUser);
             closeResetPasswordModal();
@@ -496,6 +521,7 @@
     window.openResetPasswordModal = openResetPasswordModal;
     window.closeResetPasswordModal = closeResetPasswordModal;
     window.handleResetPassword = handleResetPassword;
+    window.handleResetPasswordSignOut = handleResetPasswordSignOut;
     window.openForgotPasswordModal = openForgotPasswordModal;
     window.closeForgotPasswordModal = closeForgotPasswordModal;
     window.handleForgotSendOtp = handleForgotSendOtp;

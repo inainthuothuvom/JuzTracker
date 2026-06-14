@@ -45,9 +45,14 @@
             for (var i = 0; i < r.data.length; i++) {
                 var n = r.data[i];
                 if (n.id > _lastNotifId) _lastNotifId = n.id;
-                if (!n.is_read) { unread++; showBrowserNotification(n.title, n.body || ''); markAsRead(n.id); }
+                if (!n.is_read) { unread++; showBrowserNotification(n.title, n.body || ''); }
             }
-            updateBellBadge(unread);
+            if (unread > 0) {
+                _supabase.from('notifications').select('id').eq('is_read', false).then(function(cnt) {
+                    var totalUnread = cnt.data ? cnt.data.length : unread;
+                    updateBellBadge(totalUnread);
+                });
+            }
         });
     }
 
