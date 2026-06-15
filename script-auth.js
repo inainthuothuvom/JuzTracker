@@ -38,6 +38,9 @@
         currentUser = user;
         localStorage.setItem('juz_auth_user', JSON.stringify(user));
         updateAuthUI();
+        if (window.AppNotifications && window.AppNotifications.init) {
+            window.AppNotifications.init();
+        }
     }
 
     function clearSession() {

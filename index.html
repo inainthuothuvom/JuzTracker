@@ -442,9 +442,14 @@
 
         <div class="form-group">
             <label style="font-size:0.85rem;">Backup Reader <br> ஆதரவு வாசகர்</label>
-            <select id="supportUserSelect">
-                <option value="">Select Support Partner...</option>
-            </select>
+            <div class="searchable-select-container">
+                <input type="text" id="supportUserSearch" class="search-input" placeholder="Type to search..." autocomplete="off"
+                    onfocus="this.select(); openSupportCandDropdown()"
+                    oninput="filterSupportCandidates()"
+                    onblur="setTimeout(closeSupportCandDropdown, 200)" value="">
+                <div class="searchable-dropdown" id="supportCandDropdown"></div>
+                <input type="hidden" id="supportUserSelect" value="">
+            </div>
         </div>
 
         <button id="reassignBtn" onclick="submitReassignment()">

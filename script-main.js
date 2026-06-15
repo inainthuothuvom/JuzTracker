@@ -784,15 +784,21 @@ function closeSupportAssignmentModal() {
     document.getElementById('supportAssignmentModal').style.display = 'none';
 }
 
+var supportCandData = [];
+
 function openReassignModal() {
     const modal = document.getElementById('reassignModal');
-    const select = document.getElementById('supportUserSelect');
+    const searchInput = document.getElementById('supportUserSearch');
+    const dropdown = document.getElementById('supportCandDropdown');
+    const hiddenInput = document.getElementById('supportUserSelect');
     const metaText = document.getElementById('reassignMetaText');
     const reassignBtn = document.getElementById('reassignBtn');
     const dateVal = (currentHadiyaDetails && currentHadiyaDetails.weekStart) || document.getElementById('dateInput').value;
 
-    select.innerHTML = '<option value="">Loading available candidates...</option>';
-    select.disabled = true;
+    searchInput.value = '';
+    hiddenInput.value = '';
+    dropdown.innerHTML = '<div class="opt no-match" style="padding:20px;">Loading available candidates...</div>';
+    searchInput.disabled = true;
     reassignBtn.disabled = true;
     modal.style.display = "flex";
 
@@ -800,20 +806,45 @@ function openReassignModal() {
     metaText.innerHTML = `An exception has been registered.<br><br>விதிவிலக்கு பதிவு செய்யப்பட்டுள்ளது<br><br><b>Juz ${currentActiveJuzNumber}</b><br><b>Original Reader:</b> ${originalName}`;
 
     window.appApi.withSuccessHandler(function(candidates) {
-        select.innerHTML = '<option value="">Select Support Partner...</option>';
-        if (candidates.length === 0) {
-            select.innerHTML = '<option value="">No readers available</option>';
-            return;
-        }
-        candidates.forEach(c => {
-            let opt = document.createElement('option');
-            opt.value = c.id;
-            opt.text = c.english + " | " + c.tamil;
-            select.appendChild(opt);
-        });
-        select.disabled = false;
+        supportCandData = candidates;
+        searchInput.disabled = false;
         reassignBtn.disabled = false;
+        searchInput.focus();
+        filterSupportCandidates();
     }).getAvailableSupportUsers(dateVal, currentActiveUserId);
+}
+
+function openSupportCandDropdown() {
+    document.getElementById('supportCandDropdown').style.display = 'block';
+    filterSupportCandidates();
+}
+function closeSupportCandDropdown() {
+    document.getElementById('supportCandDropdown').style.display = 'none';
+}
+function filterSupportCandidates() {
+    const q = document.getElementById('supportUserSearch').value.toLowerCase();
+    const dropdown = document.getElementById('supportCandDropdown');
+    if (supportCandData.length === 0) {
+        dropdown.innerHTML = '<div class="opt no-match" style="padding:20px;">No readers available</div>';
+        dropdown.style.display = 'block';
+        return;
+    }
+    const filtered = supportCandData.filter(c =>
+        (c.english + ' | ' + c.tamil).toLowerCase().includes(q)
+    );
+    if (filtered.length === 0) {
+        dropdown.innerHTML = '<div class="opt no-match">No matches found / பொருந்தவில்லை</div>';
+    } else {
+        dropdown.innerHTML = filtered.map(c =>
+            `<div class="opt" data-id="${c.id}" onmousedown="selectSupportCandidate('${c.id}','${(c.english + ' | ' + c.tamil).replace(/'/g, "\\'")}')">${c.english} | ${c.tamil}</div>`
+        ).join('');
+    }
+    dropdown.style.display = 'block';
+}
+function selectSupportCandidate(id, displayName) {
+    document.getElementById('supportUserSearch').value = displayName;
+    document.getElementById('supportUserSelect').value = id;
+    document.getElementById('supportCandDropdown').style.display = 'none';
 }
 
 function submitReassignment() {

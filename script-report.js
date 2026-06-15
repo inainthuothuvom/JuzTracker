@@ -104,11 +104,13 @@ function submitReportEditStatus(newStatus) {
                 }
             }
             showSnackbar("Status updated: " + newStatus, false);
+            var updatedUserId = reportEditUserId;
             closeReportEditModal();
             setTimeout(function() {
-                submitQuery();
-                fetchHadiyaDetails(document.getElementById('dateInput').value);
-                applyReportFilter();
+                fetchAndRenderReport(weekVal, function() {
+                    if (typeof fetchHadiyaDetails === 'function') fetchHadiyaDetails(document.getElementById('dateInput').value);
+                    if (typeof submitQuery === 'function' && currentActiveUserId === updatedUserId) submitQuery();
+                });
             }, 300);
         } else {
             showSnackbar("Failed: " + (response.error || 'Error'), true);

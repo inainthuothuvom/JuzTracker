@@ -1,4 +1,14 @@
     (function() {
+        function resolveMemberCustomId(userId) {
+            if (!userId) return Promise.resolve(null);
+            return _supabase.from('members').select('id,custom_id').eq('id', userId).maybeSingle().then(function(r) {
+                if (r.data) return r.data.custom_id;
+                return _supabase.from('members').select('id,custom_id').eq('custom_id', String(userId)).maybeSingle().then(function(r2) {
+                    return r2.data ? r2.data.custom_id : null;
+                });
+            });
+        }
+
         var _ok = null, _err = null;
         function run() { return this; }
         var api = {
@@ -517,11 +527,11 @@ var result = {
                     if (!monday) { if (ok) ok({ success: false, error: 'Invalid date' }); return this; }
                     // Look up custom_id for weekly_status queries
                     var customId = null;
-                    _supabase.from('members').select('custom_id').eq('id', userId).single().then(function(rCid) {
-                        if (!rCid.data) { if (ok) ok({ success: false, error: 'Member not found' }); return; }
-                        customId = rCid.data.custom_id;
-                    // Get existing status
-                    _supabase.from('weekly_status').select('*').eq('week_start', monday).eq('member_id', customId).single().then(function(rGet) {
+                    resolveMemberCustomId(userId).then(function(resolvedCustomId) {
+                        if (!resolvedCustomId) { if (ok) ok({ success: false, error: 'Member not found' }); return; }
+                        customId = resolvedCustomId;
+                        // Get existing status
+                        _supabase.from('weekly_status').select('*').eq('week_start', monday).eq('member_id', customId).single().then(function(rGet) {
                         var existing = rGet.data;
                         var nameEn = customId;
                         if (existing) nameEn = existing.member_name || customId;
@@ -572,14 +582,13 @@ var result = {
                                         var nTitle = statusUpdate + ' - ' + enName + ' | ' + taName;
                                         var nBody = 'Juz ' + juzNum + ' | Week ' + formatDateDDMMMYYYY(monday) + ' | ' + oldStatus + ' → ' + statusUpdate;
                                         var nBodyTa = 'ஜுஸ் ' + juzNum + ' | வாரம் ' + formatDateDDMMMYYYY(monday) + ' | ' + oldStatus + ' → ' + statusUpdate;
-                                        window.AppNotifications.insert(nTitle, nBody + '\n' + nBodyTa, '', 'admin');
-                                        if (cu && cu.customId) window.AppNotifications.insert(nTitle, nBody + '\n' + nBodyTa, cu.customId, 'user');
-                                    }
+                                        var notificationPromise = window.AppNotifications.insertToAllAdmins ? window.AppNotifications.insertToAllAdmins(nTitle, nBody + '\n' + nBodyTa, true) : Promise.resolve();
+                                        if (cu && cu.customId && cu.role !== 'admin') notificationPromise = notificationPromise.then(function() { return window.AppNotifications.insert(nTitle, nBody + '\n' + nBodyTa, cu.customId, 'user'); });
+                                        notificationPromise.then(function() { if (ok) ok({ success: true }); });
+                                    } else if (ok) ok({ success: true });
                                 });
-                                
-                                if (ok) ok({ success: true });
                             });
-                        }
+                            }
                         // Non-admins can only update the current week
                         if (cu && cu.role !== 'admin') {
                             var currentWeek = normalizeToWeekStart(new Date());
@@ -637,8 +646,11 @@ var result = {
                 try {
                     var monday = normalizeToWeekStart(inputDateStr);
                     if (!monday) { if (ok) ok({ success: false, error: 'Invalid date' }); return this; }
-                    var customId = userId;
-                    _supabase.from('weekly_status').select('*').eq('week_start', monday).eq('member_id', customId).single().then(function(rGet) {
+                    var customId = null;
+                    resolveMemberCustomId(userId).then(function(resolvedCustomId) {
+                        if (!resolvedCustomId) { if (ok) ok({ success: false, error: 'Member not found' }); return; }
+                        customId = resolvedCustomId;
+                        _supabase.from('weekly_status').select('*').eq('week_start', monday).eq('member_id', customId).single().then(function(rGet) {
                         var existing = rGet.data;
                         if (!existing) { if (ok) ok({ success: false, error: 'Record not found' }); return; }
                         var timestamp = (customTimestamp && customTimestamp.trim()) ? customTimestamp.trim() : formatCurrentTimestamp();
@@ -687,12 +699,11 @@ var result = {
                                         var nTitle = (existing.status === 'Exception Raised' ? 'Support ' + newSupportStatus : 'Status Update') + ' - ' + enName + ' | ' + (typeof readerTaName !== 'undefined' ? readerTaName : '');
                                         var nBody = 'Juz ' + juzNum + ' | Week ' + formatDateDDMMMYYYY(monday) + (existing.status === 'Exception Raised' ? ' | Support: ' + supEnName : '');
                                         var nBodyTa = 'ஜுஸ் ' + juzNum + ' | வாரம் ' + formatDateDDMMMYYYY(monday) + (existing.status === 'Exception Raised' ? ' | உதவி: ' + (typeof supTaName !== 'undefined' ? supTaName : supEnName) : '');
-                                        window.AppNotifications.insert(nTitle, nBody + '\n' + nBodyTa, '', 'admin');
-                                        if (cu && cu.customId) window.AppNotifications.insert(nTitle, nBody + '\n' + nBodyTa, cu.customId, 'user');
-                                    }
+                                        var notificationPromise = window.AppNotifications.insertToAllAdmins ? window.AppNotifications.insertToAllAdmins(nTitle, nBody + '\n' + nBodyTa, true) : Promise.resolve();
+                                        if (cu && cu.customId && cu.role !== 'admin') notificationPromise = notificationPromise.then(function() { return window.AppNotifications.insert(nTitle, nBody + '\n' + nBodyTa, cu.customId, 'user'); });
+                                        notificationPromise.then(function() { if (ok) ok({ success: true }); });
+                                    } else if (ok) ok({ success: true });
                                 });
-                                
-                                // Send email notification if support status is Completed (or changing from Completed)
                                 if (false) { // Email disabled until live
                                 try {
                                     var memberName = existing.member_name || '';
@@ -732,7 +743,7 @@ var result = {
                                             var nTitle = (existing.status === 'Exception Raised' ? 'Support ' + newSupportStatus : 'Status Update') + ' - ' + enName + ' | ' + (typeof readerTaName !== 'undefined' ? readerTaName : '');
                                             var nBody = 'Juz ' + juzNum + ' | Week ' + formatDateDDMMMYYYY(monday) + (existing.status === 'Exception Raised' ? ' | Support: ' + supEnName : '');
                                             var nBodyTa = 'ஜுஸ் ' + juzNum + ' | வாரம் ' + formatDateDDMMMYYYY(monday) + (existing.status === 'Exception Raised' ? ' | உதவி: ' + (typeof supTaName !== 'undefined' ? supTaName : supEnName) : '');
-                                            window.AppNotifications.insert(nTitle, nBody + '\n' + nBodyTa, '', 'admin');
+                                            window.AppNotifications.insertToAllAdmins(nTitle, nBody + '\n' + nBodyTa, true);
                                         }
                                     });
                                 } catch(emailErr) {
@@ -745,6 +756,7 @@ var result = {
                     }
                     });
                     return this;
+                });
                 } catch(err) { if (ok) ok({ success: false, error: err.toString() }); }
                 return this;
             },
@@ -759,11 +771,11 @@ var result = {
                     if (!monday) { if (ok) ok({ success: false, error: 'Invalid date' }); return this; }
                     // Get custom_id for weekly_status queries
                     var customId = null;
-                    _supabase.from('members').select('custom_id').eq('id', userId).single().then(function(rCid) {
-                        if (!rCid.data) { if (ok) ok({ success: false, error: 'Member not found' }); return; }
-                        customId = rCid.data.custom_id;
-                    // Get support user name
-                    _supabase.from('members').select('name_en,name_ta').eq('id', supportUserId).single().then(function(rSup) {
+                    resolveMemberCustomId(userId).then(function(resolvedCustomId) {
+                        if (!resolvedCustomId) { if (ok) ok({ success: false, error: 'Member not found' }); return; }
+                        customId = resolvedCustomId;
+                        // Get support user name
+                        _supabase.from('members').select('name_en,name_ta').eq('id', supportUserId).single().then(function(rSup) {
                         var supName = rSup.data ? (rSup.data.name_en || 'Support') + ' | ' + (rSup.data.name_ta || '') : 'Support Reader';
                         // Get existing record
                         _supabase.from('weekly_status').select('*').eq('week_start', monday).eq('member_id', customId).single().then(function(rGet) {
@@ -809,9 +821,10 @@ var result = {
                                             var nTitle = 'Support Assigned - ' + enName + ' | ' + taName;
                                             var nBody = 'Juz ' + (existing.juz_number || '-') + ' | Week ' + formatDateDDMMMYYYY(monday) + ' | Support: ' + supEnName;
                                             var nBodyTa = 'ஜுஸ் ' + (existing.juz_number || '-') + ' | வாரம் ' + formatDateDDMMMYYYY(monday) + ' | உதவி: ' + supTaName;
-                                            window.AppNotifications.insert(nTitle, nBody + '\n' + nBodyTa, '', 'admin');
-                                            if (cu && cu.customId) window.AppNotifications.insert(nTitle, nBody + '\n' + nBodyTa, cu.customId, 'user');
-                                        }
+                                            var notificationPromise = window.AppNotifications.insertToAllAdmins ? window.AppNotifications.insertToAllAdmins(nTitle, nBody + '\n' + nBodyTa, true) : Promise.resolve();
+                                            if (cu && cu.customId && cu.role !== 'admin') notificationPromise = notificationPromise.then(function() { return window.AppNotifications.insert(nTitle, nBody + '\n' + nBodyTa, cu.customId, 'user'); });
+                                            notificationPromise.then(function() { if (ok) ok({ success: true, assignedName: supName }); });
+                                        } else if (ok) ok({ success: true, assignedName: supName });
                                     });
                                 } catch(emailErr) {
                                     console.error('Email notification failed:', emailErr);
@@ -840,7 +853,13 @@ var result = {
                         if (!rGet.data) { if (ok) ok({ success: false, error: 'Hadiya row not found' }); return; }
                         _supabase.from('hadiya_details').update({ status: newStatus }).eq('start_date', rGet.data.start_date).then(function(rUp) {
                             if (rUp.error) { if (ok) ok({ success: false, error: rUp.error.message }); return; }
-                            if (ok) ok({ success: true });
+                            var cu = window.currentUser ? window.currentUser() : null;
+                            var updater = cu ? ((cu.name || 'Unknown') + (cu.email ? ' (' + cu.email + ')' : '')) : 'Web User';
+                            var title = 'Hadiya status updated';
+                            var body = 'Week ' + rGet.data.start_date + ' | Status: ' + newStatus + ' | Updated by ' + updater;
+                            if (window.AppNotifications && window.AppNotifications.insertToAllAdmins) {
+                                window.AppNotifications.insertToAllAdmins(title, body, true).then(function() { if (ok) ok({ success: true }); });
+                            } else if (ok) ok({ success: true });
                         });
                     });
                 } catch(err) { if (ok) ok({ success: false, error: err.toString() }); }
