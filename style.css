@@ -878,3 +878,4 @@
         .notif-detail-title { font-size:1rem;font-weight:600;color:#e6edf3;flex:1;padding-right:12px; }
         .notif-detail-time { font-size:0.75rem;color:#484f58;margin-bottom:12px; }
         .notif-detail-body { font-size:0.88rem;color:#c9d1d9;line-height:1.5;white-space:pre-wrap;word-break:break-word; }
+        .conn-banner { background:#d32f2f;color:#fff;text-align:center;padding:4px 10px;font-size:0.75rem;margin:-6px -14px 6px; }

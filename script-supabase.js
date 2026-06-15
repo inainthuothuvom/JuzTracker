@@ -584,6 +584,7 @@ var result = {
                                         var nBodyTa = 'ஜுஸ் ' + juzNum + ' | வாரம் ' + formatDateDDMMMYYYY(monday) + ' | ' + oldStatus + ' → ' + statusUpdate;
                                         var notificationPromise = window.AppNotifications.insertToAllAdmins ? window.AppNotifications.insertToAllAdmins(nTitle, nBody + '\n' + nBodyTa, true) : Promise.resolve();
                                         if (cu && cu.customId && cu.role !== 'admin') notificationPromise = notificationPromise.then(function() { return window.AppNotifications.insert(nTitle, nBody + '\n' + nBodyTa, cu.customId, 'user'); });
+                                        if (customId && (!cu || cu.customId !== customId)) notificationPromise = notificationPromise.then(function() { return window.AppNotifications.notifyTargetUser ? window.AppNotifications.notifyTargetUser(nTitle, nBody + '\n' + nBodyTa, customId) : Promise.resolve(); });
                                         notificationPromise.then(function() { if (ok) ok({ success: true }); });
                                     } else if (ok) ok({ success: true });
                                 });
@@ -701,6 +702,7 @@ var result = {
                                         var nBodyTa = 'ஜுஸ் ' + juzNum + ' | வாரம் ' + formatDateDDMMMYYYY(monday) + (existing.status === 'Exception Raised' ? ' | உதவி: ' + (typeof supTaName !== 'undefined' ? supTaName : supEnName) : '');
                                         var notificationPromise = window.AppNotifications.insertToAllAdmins ? window.AppNotifications.insertToAllAdmins(nTitle, nBody + '\n' + nBodyTa, true) : Promise.resolve();
                                         if (cu && cu.customId && cu.role !== 'admin') notificationPromise = notificationPromise.then(function() { return window.AppNotifications.insert(nTitle, nBody + '\n' + nBodyTa, cu.customId, 'user'); });
+                                        if (customId && (!cu || cu.customId !== customId)) notificationPromise = notificationPromise.then(function() { return window.AppNotifications.notifyTargetUser ? window.AppNotifications.notifyTargetUser(nTitle, nBody + '\n' + nBodyTa, customId) : Promise.resolve(); });
                                         notificationPromise.then(function() { if (ok) ok({ success: true }); });
                                     } else if (ok) ok({ success: true });
                                 });
@@ -823,6 +825,7 @@ var result = {
                                             var nBodyTa = 'ஜுஸ் ' + (existing.juz_number || '-') + ' | வாரம் ' + formatDateDDMMMYYYY(monday) + ' | உதவி: ' + supTaName;
                                             var notificationPromise = window.AppNotifications.insertToAllAdmins ? window.AppNotifications.insertToAllAdmins(nTitle, nBody + '\n' + nBodyTa, true) : Promise.resolve();
                                             if (cu && cu.customId && cu.role !== 'admin') notificationPromise = notificationPromise.then(function() { return window.AppNotifications.insert(nTitle, nBody + '\n' + nBodyTa, cu.customId, 'user'); });
+                                        if (customId && (!cu || cu.customId !== customId)) notificationPromise = notificationPromise.then(function() { return window.AppNotifications.notifyTargetUser ? window.AppNotifications.notifyTargetUser(nTitle, nBody + '\n' + nBodyTa, customId) : Promise.resolve(); });
                                             notificationPromise.then(function() { if (ok) ok({ success: true, assignedName: supName }); });
                                         } else if (ok) ok({ success: true, assignedName: supName });
                                     });

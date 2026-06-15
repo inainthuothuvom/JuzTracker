@@ -2,6 +2,7 @@
     var _pollInterval = null;
     var _lastNotifId = 0;
     var _currentTab = 'active';
+    var _realtimeChannel = null;
 
     function getCurrentUserId() {
         var u = window.currentUser ? window.currentUser() : null;
@@ -39,21 +40,19 @@
         if (userId) query = query.eq('target_user_id', userId);
         else if (!userId) return;
         query.then(function(r) {
-            if (!r.data || r.data.length === 0) return;
-            var unread = 0;
-            for (var i = 0; i < r.data.length; i++) {
-                var n = r.data[i];
-                if (n.id > _lastNotifId) _lastNotifId = n.id;
-                if (!n.is_read) { unread++; showBrowserNotification(n.title, n.body || ''); }
+            if (r.data && r.data.length > 0) {
+                var unread = 0;
+                for (var i = 0; i < r.data.length; i++) {
+                    var n = r.data[i];
+                    if (n.id > _lastNotifId) _lastNotifId = n.id;
+                    if (!n.is_read) { unread++; showBrowserNotification(n.title, n.body || ''); }
+                }
             }
-            if (unread > 0) {
-                var countQuery = _supabase.from('notifications').select('id').eq('is_read', false);
-                if (userId) countQuery = countQuery.eq('target_user_id', userId);
-                countQuery.then(function(cnt) {
-                    var totalUnread = cnt.data ? cnt.data.length : unread;
-                    updateBellBadge(totalUnread);
-                });
-            }
+            var countQuery = _supabase.from('notifications').select('id', { count: 'exact', head: true }).eq('is_read', false);
+            if (userId) countQuery = countQuery.eq('target_user_id', userId);
+            countQuery.then(function(cnt) {
+                updateBellBadge(cnt.count || 0);
+            });
         });
     }
 
@@ -62,7 +61,7 @@
     }
 
     function archiveNotification(id) {
-        _supabase.from('notifications').update({ is_read: true, is_archived: true }).eq('id', id).then(function() { renderPanel(); });
+        _supabase.from('notifications').update({ is_read: true, is_archived: true }).eq('id', id).then(function() { fetchAndDisplayNotifications(); renderPanel(); });
     }
     function deleteNotification(id) {
         _supabase.from('notifications').delete().eq('id', id).then(function() { renderPanel(); });
@@ -71,9 +70,9 @@
     function markAllAsRead() {
         var userId = getCurrentUserId();
         var admin = isAdmin();
-        var query = _supabase.from('notifications').update({ is_read: true }).eq('is_read', false);
+        var query = _supabase.from('notifications').update({ is_read: true, is_archived: true }).eq('is_read', false);
         if (userId) query = query.eq('target_user_id', userId);
-        query.then(function() { updateBellBadge(0); renderPanel(); });
+        query.then(function() { fetchAndDisplayNotifications(); renderPanel(); });
     }
 
     function getBaseQuery(archived) {
@@ -90,7 +89,7 @@
         var cutoff = new Date(Date.now() - 86400000).toISOString();
         var query = _supabase.from('notifications').update({ is_archived: true }).eq('is_archived', false).lt('created_at', cutoff);
         if (userId) query = query.eq('target_user_id', userId);
-        if (userId || admin) query.then(function() {});
+        if (userId || admin) query.then(function() { fetchAndDisplayNotifications(); });
     }
 
     function renderPanel() {
@@ -277,6 +276,30 @@
         });
     }
 
+    function notifyTargetUser(title, body, targetCustomId) {
+        if (!targetCustomId) return Promise.resolve();
+        return _supabase.from('users').select('id').eq('custom_id', targetCustomId).eq('first_login', false).maybeSingle().then(function(r) {
+            if (r.data) {
+                return insert(title, body, targetCustomId, 'user');
+            }
+        });
+    }
+
+    function setupRealtime() {
+        var userId = getCurrentUserId();
+        if (!userId) return;
+        if (_realtimeChannel) _realtimeChannel.unsubscribe();
+        _realtimeChannel = _supabase.channel('notif-' + userId)
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: 'target_user_id=eq.' + userId }, function(payload) {
+                var n = payload.new;
+                if (!n.is_read) fetchAndDisplayNotifications();
+                var panel = document.getElementById('notifPanel');
+                if (panel && panel.style.display === 'flex') renderPanel();
+                if (!n.is_read) showBrowserNotification(n.title, n.body || '');
+            })
+            .subscribe();
+    }
+
     function openNotifDetail(id, title, body, timeStr) {
         var overlay = document.getElementById('notifDetailOverlay');
         if (!overlay) {
@@ -311,8 +334,7 @@
     function init() {
         var authBtn = document.getElementById('authBtn');
         if (!authBtn) { setTimeout(init, 500); return; }
-
-        if (document.getElementById('notifBellBtn')) return;
+        if (document.getElementById('notifBellBtn')) { setupRealtime(); return; }
 
         var user = window.currentUser ? window.currentUser() : null;
         if (!user) return;
@@ -354,7 +376,8 @@
         requestPermission();
         fetchAndDisplayNotifications();
         scanDueNotifications();
-        _pollInterval = setInterval(fetchAndDisplayNotifications, 30000);
+        setupRealtime();
+        _pollInterval = setInterval(fetchAndDisplayNotifications, 15000);
         setInterval(scanDueNotifications, 60000);
     }
 
@@ -386,7 +409,7 @@
     }
 
     window.AppNotifications = {
-        init: init, insert: insert, insertToAllAdmins: insertToAllAdmins, markAsRead: markAsRead, archiveNotification: archiveNotification,
+        init: init, insert: insert, insertToAllAdmins: insertToAllAdmins, notifyTargetUser: notifyTargetUser, markAsRead: markAsRead, archiveNotification: archiveNotification,
         deleteNotification: deleteNotification,
         markAllAsRead: markAllAsRead, renderPanel: renderPanel, switchTab: switchTab,
         togglePanel: togglePanel, closePanel: closePanel, requestPermission: requestPermission,

@@ -31,6 +31,85 @@ let fetchedStateCache = null;
 let userListData = [];
 let allowedUserData = [];
 
+var _connBackoff = [10, 30, 60, 120, 300];
+var _connAttempt = 0;
+var _connTimer = null;
+var _connOnline = navigator.onLine !== false;
+
+function initConnMonitor() {
+    window.addEventListener('online', function() { if (!_connOnline) { _connOnline = true; onConnRestored(); } });
+    window.addEventListener('offline', function() { if (_connOnline) { _connOnline = false; onConnLost(); } });
+    if (!_connOnline) { onConnLost(); return; }
+    setInterval(function() { if (_connOnline) pingSupabase(); }, 30000);
+}
+
+function onConnLost() {
+    _connAttempt = 0; _connOnline = false; updateConnBanner(); scheduleConnCheck();
+    if (typeof resetAssignmentDetails === 'function') resetAssignmentDetails();
+    closeResult();
+    var overlay = document.getElementById('connOverlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'connOverlay';
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;';
+        var msg = document.createElement('div');
+        msg.id = 'connOverlayMsg';
+        msg.style.cssText = 'color:#fff;font-size:1.1rem;text-align:center;padding:20px;';
+        overlay.appendChild(msg);
+        document.body.appendChild(overlay);
+    }
+    overlay.style.display = 'flex';
+    document.getElementById('connOverlayMsg').textContent = 'No internet connection. Retrying in ' + _connBackoff[0] + 's...';
+}
+
+function onConnRestored() {
+    _connOnline = true; _connAttempt = 0;
+    if (_connTimer) { clearTimeout(_connTimer); _connTimer = null; }
+    updateConnBanner();
+    var overlay = document.getElementById('connOverlay');
+    if (overlay) overlay.style.display = 'none';
+    var d = document.getElementById('dateInput');
+    if (d && d.value) {
+        if (typeof refreshUserDropdown === 'function') refreshUserDropdown(d.value);
+        if (typeof fetchHadiyaDetails === 'function') fetchHadiyaDetails(d.value);
+        if (typeof fetchAndRenderReport === 'function') fetchAndRenderReport(d.value);
+        if (typeof fetchAndDisplayNotifications === 'function') fetchAndDisplayNotifications();
+    }
+}
+
+function scheduleConnCheck() {
+    if (_connTimer) { clearTimeout(_connTimer); _connTimer = null; }
+    if (_connOnline) return;
+    var idx = Math.min(_connAttempt, _connBackoff.length - 1);
+    _connTimer = setTimeout(function() { pingSupabase(); }, _connBackoff[idx] * 1000);
+}
+
+function pingSupabase() {
+    _supabase.from('notifications').select('id', { count: 'exact', head: true }).limit(0).then(function(r) {
+        if (!_connOnline && !r.error) { _connOnline = true; onConnRestored(); }
+        else if (_connOnline && r.error) { _connOnline = false; onConnLost(); }
+        else if (!_connOnline && r.error) { _connAttempt++; updateConnBanner(); scheduleConnCheck(); }
+    }).catch(function() {
+        if (_connOnline) { _connOnline = false; onConnLost(); }
+        else { _connAttempt++; updateConnBanner(); scheduleConnCheck(); }
+    });
+}
+
+function updateConnBanner() {
+    var banner = document.getElementById('connBanner');
+    if (!banner) return;
+    if (!_connOnline) {
+        var idx = Math.min(_connAttempt, _connBackoff.length - 1);
+        var msg = 'No internet. Retrying in ' + _connBackoff[idx] + 's...';
+        banner.style.display = 'block';
+        banner.textContent = msg;
+        var overlayMsg = document.getElementById('connOverlayMsg');
+        if (overlayMsg) overlayMsg.textContent = msg;
+    } else {
+        banner.style.display = 'none';
+    }
+}
+
 function refreshUserDropdown(dateVal) {
     const prevId = document.getElementById('userSelect').value;
     var cu = window.currentUser ? window.currentUser() : null;
@@ -39,11 +118,23 @@ function refreshUserDropdown(dateVal) {
         var allIds = {};
         users.forEach(function(u) { allIds[u.id] = true; });
         if (cu && cu.role !== 'admin') {
+            document.getElementById('userSearch').disabled = true;
             var myMember = users.filter(function(u) { return String(u.custom_id) === String(cu.customId); });
             var myMemberId = myMember.length > 0 ? myMember[0].id : null;
             var allowed = myMember.slice();
             if (myMemberId) {
                 var monday = normalizeToWeekStart(dateVal);
+                var effDate = myMember[0].effective_date;
+                if (effDate && monday < normalizeToWeekStart(effDate)) {
+                    autoSelectMember(myMember);
+                    document.getElementById('submitBtn').disabled = true;
+                    allowedUserData = allowed;
+                    var allowedIds = {};
+                    allowed.forEach(function(a) { allowedIds[a.id] = true; });
+                    applyDropdown(allowed, allowedIds);
+                    showSnackbar('You were not active during this week. Your effective date is ' + effDate.slice(0,10) + '.', true);
+                    return;
+                }
                 _supabase.from('weekly_status').select('member_id').eq('week_start', monday).eq('supported_by_id', myMemberId).then(function(rSup) {
                     if (rSup.data) {
                         var supIds = {};
@@ -57,8 +148,20 @@ function refreshUserDropdown(dateVal) {
                     autoSelectMember(myMember);
                 });
             } else {
-                allowedUserData = allowed;
-                applyDropdown(users, {});
+                _supabase.from('members').select('name_en,name_ta,effective_date').eq('custom_id', String(cu.customId)).order('effective_date', { ascending: false }).limit(1).maybeSingle().then(function(r) {
+                    if (r.data) {
+                        var display = (r.data.name_en || '') + ' | ' + (r.data.name_ta || '');
+                        document.getElementById('userSearch').value = display;
+                    } else {
+                        document.getElementById('userSearch').value = cu.name || cu.customId || '';
+                    }
+                    document.getElementById('userSelect').value = '';
+                    document.getElementById('submitBtn').disabled = true;
+                    var effMsg = r.data && r.data.effective_date ? ' Your effective date is ' + r.data.effective_date.slice(0,10) + '.' : '';
+                    showSnackbar('You are not active during this selected week.' + effMsg, true);
+                });
+                allowedUserData = [];
+                applyDropdown([], {});
             }
         } else {
             allowedUserData = users;
@@ -102,6 +205,7 @@ function goToCurrentWeek() {
 }
 
 window.onload = function() {
+    initConnMonitor();
     (function(){var now=new Date();var IST_MS=5.5*3600000;var ist=new Date(now.getTime()+now.getTimezoneOffset()*60000+IST_MS);var p=function(n){return String(n).padStart(2,'0')};document.getElementById('dateInput').value=ist.getFullYear()+'-'+p(ist.getMonth()+1)+'-'+p(ist.getDate())+'T'+p(ist.getHours())+':'+p(ist.getMinutes());})();
     const today = document.getElementById('dateInput').value;
     refreshUserDropdown(today);
