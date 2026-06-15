@@ -1,8 +1,8 @@
 {
   "name": "Inainthu Othuvom",
   "short_name": "Inainthu Othuvom",
-  "description": "Quran Juz reading tracker — இனைந்து ஓதுவோம்",
-  "start_url": "/",
+  "description": "இனைந்து ஓதுவோம்",
+  "start_url": "https://inainthuothuvom.github.io/JuzTracker/",
   "display": "standalone",
   "background_color": "#161b22",
   "theme_color": "#0d1117",
