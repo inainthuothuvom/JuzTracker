@@ -230,8 +230,9 @@ window.addEventListener('popstate', function() {
     }
     if (topModal) {
         var closeBtns = topModal.querySelectorAll('.close-btn');
-        var closeBtn = closeBtns[closeBtns.length - 1];
-        if (closeBtn) closeBtn.click();
+        var closeBtn = closeBtns[0];
+        if (closeBtn && closeBtn.style.position === 'static') closeBtn.click();
+        else if (closeBtns.length > 0) closeBtns[closeBtns.length - 1].click();
         history.pushState(null, null, location.href);
         return;
     }
