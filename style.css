@@ -388,7 +388,7 @@
         .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #30363d; padding: 4px 0; margin-bottom: 0; }
         .modal-header + * { margin-top: 10px; }
         .modal-title { font-size: 1.2rem; font-weight: 600; color: #79c0ff; display: flex; align-items: center; gap: 10px; }
-        .close-btn { font-size: 1.5rem; font-weight: bold; color: #8b949e; cursor: pointer; transition: color 0.2s; line-height: 1; }
+        .close-btn { font-size: 1.5rem; font-weight: bold; color: #8b949e; cursor: pointer; transition: color 0.2s; line-height: 1; padding: 2px 6px; }
         .close-btn:hover { color: #e6edf3; }
 
         .report-count-badge { background-color: #0d2b4a; color: #79c0ff; font-size: 0.75rem; font-weight: 600; padding: 3px 8px; border-radius: 4px; display: inline-block; }
