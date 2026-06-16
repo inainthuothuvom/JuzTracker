@@ -8,3 +8,4 @@ set-icons.cjs
 *.apk
 *.keystore
 cap-app/
+twa-project/
