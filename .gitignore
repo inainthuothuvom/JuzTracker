@@ -1,18 +1,10 @@
 config.js
+node_modules/
+package.json
+package-lock.json
 generate-icons.cjs
 resize-icons.cjs
 set-icons.cjs
 *.apk
 *.keystore
 cap-app/
-
-# Node
-node_modules/
-
-# Android / Capacitor build outputs
-android/.gradle/
-android/build/
-android/app/build/
-android/local.properties
-android/captures/
-android/.externalNativeBuild/
