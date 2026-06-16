@@ -211,7 +211,30 @@ window.onload = function() {
     refreshUserDropdown(today);
     fetchHadiyaDetails(today);
     document.getElementById('dateInput').addEventListener('change', resetAssignmentDetails);
+    history.pushState(null, null, location.href);
+    document.addEventListener('focusin', function(e) {
+        if (e.target.closest('.modal')) {
+            var modal = e.target.closest('.modal');
+            setTimeout(function() { modal.scrollTop = 0; }, 400);
+        }
+    });
 };
+
+var backPressCount = 0;
+var backPressTimer = null;
+window.addEventListener('popstate', function() {
+    var modals = document.querySelectorAll('.modal');
+    var anyOpen = false;
+    modals.forEach(function(m) { if (m.style.display === 'flex') { m.style.display = 'none'; anyOpen = true; } });
+    if (anyOpen) { history.pushState(null, null, location.href); return; }
+    backPressCount++;
+    if (backPressCount === 1) {
+        goToCurrentWeek();
+        history.pushState(null, null, location.href);
+        clearTimeout(backPressTimer);
+        backPressTimer = setTimeout(function() { backPressCount = 0; }, 2000);
+    }
+});
 
 function resetAssignmentDetails() {
     document.getElementById('result').style.display = "none";

@@ -381,7 +381,7 @@
         .snackbar-success { background-color: #238636; }
         .snackbar-error { background-color: #da3633; }
 
-        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); overflow-y: auto; align-items: center; justify-content: center; }
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100dvh; background-color: rgba(0, 0, 0, 0.6); overflow-y: auto; align-items: safe center; justify-content: center; overscroll-behavior: contain; }
         .modal-content { background-color: #161b22; margin: 20px auto; padding: 12px 28px 28px; border-radius: 18px; width: 95%; max-width: 680px; box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5); animation: zoomIn 0.3s; box-sizing: border-box; border: 1px solid #30363d; }
         @keyframes zoomIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
@@ -757,7 +757,7 @@
         .menu-icon-btn:focus { border-color: #58a6ff; color: #58a6ff; background: rgba(88,166,255,0.08); outline: 2px solid #58a6ff; outline-offset: 2px; }
         .hadiya-sep { height:1px; background:#30363d; margin:8px 0; }
 
-        .auth-modal-content { max-width: 400px; padding: 10px 24px 24px; }
+        .auth-modal-content { max-width: 400px; padding: 10px 24px 24px; max-height: 90dvh; overflow-y: auto; }
         .auth-body { padding: 0; }
         .auth-body .form-group { margin-bottom: 14px; }
         .auth-body label { font-size:0.85rem; color:#8b949e; margin-bottom:4px; }
