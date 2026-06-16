@@ -222,7 +222,6 @@ window.onload = function() {
 
 var backPressCount = 0;
 var backPressTimer = null;
-var isNativeApp = false;
 function handleBack() {
     var modals = document.querySelectorAll('.modal');
     var topModal = null;
@@ -235,7 +234,7 @@ function handleBack() {
         if (closeBtn && closeBtn.style.position === 'static') closeBtn.click();
         else if (closeBtns.length > 0) closeBtns[closeBtns.length - 1].click();
         backPressCount = 0;
-        if (!isNativeApp && window.history.pushState) history.pushState(null, null, location.href);
+        if (window.history.pushState) history.pushState(null, null, location.href);
         return;
     }
     backPressCount++;
@@ -243,19 +242,37 @@ function handleBack() {
         goToCurrentWeek();
         clearTimeout(backPressTimer);
         backPressTimer = setTimeout(function() { backPressCount = 0; }, 2000);
-        if (!isNativeApp && window.history.pushState) history.pushState(null, null, location.href);
+        if (window.history.pushState) history.pushState(null, null, location.href);
     }
 }
 window.addEventListener('popstate', handleBack);
-(function waitForCapacitor() {
-    if (typeof Capacitor !== 'undefined' && Capacitor.isNative && Capacitor.Plugins && Capacitor.Plugins.App) {
-        isNativeApp = true;
-        Capacitor.Plugins.App.addListener('backButton', function() {
+(function initCapacitor() {
+    if (typeof Capacitor !== 'undefined' && Capacitor.isNative) {
+        if (Capacitor.Plugins && Capacitor.Plugins.App) {
+            Capacitor.Plugins.App.addListener('backButton', function() {
+                handleBack();
+                if (backPressCount >= 2) {
+                    try { Capacitor.Plugins.App.exitApp(); } catch(e) {}
+                }
+            });
+        }
+        if (!window.location.hash) {
+            window.location.hash = 'x';
+        }
+        var first = true, busy = false;
+        window.addEventListener('hashchange', function() {
+            if (first) { first = false; return; }
+            if (busy) { busy = false; return; }
             handleBack();
-            if (backPressCount >= 2) Capacitor.Plugins.App.exitApp();
+            if (backPressCount >= 2) {
+                try { if (Capacitor.Plugins && Capacitor.Plugins.App) Capacitor.Plugins.App.exitApp(); } catch(e) {}
+                return;
+            }
+            busy = true;
+            window.location.hash = 'x';
         });
     } else {
-        setTimeout(waitForCapacitor, 100);
+        setTimeout(initCapacitor, 100);
     }
 })();
 
