@@ -224,9 +224,17 @@ var backPressCount = 0;
 var backPressTimer = null;
 window.addEventListener('popstate', function() {
     var modals = document.querySelectorAll('.modal');
-    var anyOpen = false;
-    modals.forEach(function(m) { if (m.style.display === 'flex') { m.style.display = 'none'; anyOpen = true; } });
-    if (anyOpen) { history.pushState(null, null, location.href); return; }
+    var topModal = null;
+    for (var i = modals.length - 1; i >= 0; i--) {
+        if (modals[i].style.display === 'flex') { topModal = modals[i]; break; }
+    }
+    if (topModal) {
+        var closeBtns = topModal.querySelectorAll('.close-btn');
+        var closeBtn = closeBtns[closeBtns.length - 1];
+        if (closeBtn) closeBtn.click();
+        history.pushState(null, null, location.href);
+        return;
+    }
     backPressCount++;
     if (backPressCount === 1) {
         goToCurrentWeek();
