@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">JuzTracker</string>
+    <string name="title_activity_main">JuzTracker</string>
+    <string name="package_name">com.inainthuothuvom.juztracker</string>
+    <string name="custom_url_scheme">com.inainthuothuvom.juztracker</string>
+</resources>

@@ -245,6 +245,8 @@ function handleBack(src) {
         goToCurrentWeek();
         clearTimeout(backPressTimer);
         backPressTimer = setTimeout(function() { backPressCount = 0; }, 2000);
+    } else if (backPressCount >= 2) {
+        try { if (typeof Capacitor !== 'undefined' && Capacitor.Plugins && Capacitor.Plugins.App) Capacitor.Plugins.App.exitApp(); } catch(e) {}
     }
 }
 window.addEventListener('popstate', handleBack);
