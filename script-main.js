@@ -222,7 +222,7 @@ window.onload = function() {
 
 var backPressCount = 0;
 var backPressTimer = null;
-var isApp = typeof Capacitor !== 'undefined' && Capacitor.isNative;
+var isNativeApp = false;
 function handleBack() {
     var modals = document.querySelectorAll('.modal');
     var topModal = null;
@@ -235,7 +235,7 @@ function handleBack() {
         if (closeBtn && closeBtn.style.position === 'static') closeBtn.click();
         else if (closeBtns.length > 0) closeBtns[closeBtns.length - 1].click();
         backPressCount = 0;
-        if (!isApp && window.history.pushState) history.pushState(null, null, location.href);
+        if (!isNativeApp && window.history.pushState) history.pushState(null, null, location.href);
         return;
     }
     backPressCount++;
@@ -243,16 +243,21 @@ function handleBack() {
         goToCurrentWeek();
         clearTimeout(backPressTimer);
         backPressTimer = setTimeout(function() { backPressCount = 0; }, 2000);
-        if (!isApp && window.history.pushState) history.pushState(null, null, location.href);
+        if (!isNativeApp && window.history.pushState) history.pushState(null, null, location.href);
     }
 }
 window.addEventListener('popstate', handleBack);
-if (isApp && Capacitor.Plugins && Capacitor.Plugins.App) {
-    Capacitor.Plugins.App.addListener('backButton', function() {
-        handleBack();
-        if (backPressCount >= 2) Capacitor.Plugins.App.exitApp();
-    });
-}
+(function waitForCapacitor() {
+    if (typeof Capacitor !== 'undefined' && Capacitor.isNative && Capacitor.Plugins && Capacitor.Plugins.App) {
+        isNativeApp = true;
+        Capacitor.Plugins.App.addListener('backButton', function() {
+            handleBack();
+            if (backPressCount >= 2) Capacitor.Plugins.App.exitApp();
+        });
+    } else {
+        setTimeout(waitForCapacitor, 100);
+    }
+})();
 
 function resetAssignmentDetails() {
     document.getElementById('result').style.display = "none";
