@@ -211,7 +211,72 @@ window.onload = function() {
     refreshUserDropdown(today);
     fetchHadiyaDetails(today);
     document.getElementById('dateInput').addEventListener('change', resetAssignmentDetails);
+    history.pushState(null, null, location.href);
+    document.addEventListener('focusin', function(e) {
+        if (e.target.closest('.modal')) {
+            var modal = e.target.closest('.modal');
+            setTimeout(function() { modal.scrollTop = 0; }, 400);
+        }
+    });
 };
+
+var backPressCount = 0;
+var backPressTimer = null;
+var lastBack = 0;
+function handleBack(src) {
+    var now = Date.now();
+    if (now - lastBack < 400) return;
+    lastBack = now;
+    var modals = document.querySelectorAll('.modal');
+    var topModal = null;
+    for (var i = modals.length - 1; i >= 0; i--) {
+        if (modals[i].style.display === 'flex') { topModal = modals[i]; break; }
+    }
+    if (topModal) {
+        var closeBtns = topModal.querySelectorAll('.close-btn');
+        var closeBtn = closeBtns[0];
+        if (closeBtn && closeBtn.style.position === 'static') closeBtn.click();
+        else if (closeBtns.length > 0) closeBtns[closeBtns.length - 1].click();
+        backPressCount = 0;
+        return;
+    }
+    backPressCount++;
+    if (backPressCount === 1) {
+        goToCurrentWeek();
+        clearTimeout(backPressTimer);
+        backPressTimer = setTimeout(function() { backPressCount = 0; }, 2000);
+    } else if (backPressCount >= 2) {
+        try { if (typeof Capacitor !== 'undefined' && Capacitor.Plugins && Capacitor.Plugins.App) Capacitor.Plugins.App.exitApp(); } catch(e) {}
+    }
+}
+window.addEventListener('popstate', handleBack);
+if (!window.location.hash) {
+    window.location.hash = 'x';
+}
+var firstHash = true, busyHash = false;
+window.addEventListener('hashchange', function() {
+    if (firstHash) { firstHash = false; return; }
+    if (busyHash) { busyHash = false; return; }
+    handleBack('hash');
+    if (backPressCount >= 2) {
+        try { if (typeof Capacitor !== 'undefined' && Capacitor.Plugins && Capacitor.Plugins.App) Capacitor.Plugins.App.exitApp(); } catch(e) {}
+        return;
+    }
+    busyHash = true;
+    window.location.hash = 'x';
+});
+(function pollCapacitor() {
+    if (typeof Capacitor !== 'undefined' && Capacitor.isNative && Capacitor.Plugins && Capacitor.Plugins.App) {
+        Capacitor.Plugins.App.addListener('backButton', function() {
+            handleBack('cap');
+            if (backPressCount >= 2) {
+                try { Capacitor.Plugins.App.exitApp(); } catch(e) {}
+            }
+        });
+    } else {
+        setTimeout(pollCapacitor, 100);
+    }
+})();
 
 function resetAssignmentDetails() {
     document.getElementById('result').style.display = "none";

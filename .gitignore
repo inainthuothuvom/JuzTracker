@@ -3,3 +3,9 @@ node_modules/
 package.json
 package-lock.json
 generate-icons.cjs
+resize-icons.cjs
+set-icons.cjs
+*.apk
+*.keystore
+cap-app/
+twa-project/

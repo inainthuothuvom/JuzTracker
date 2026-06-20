@@ -165,23 +165,29 @@ function openHadiyaEditDedication() {
     setTimeout(function() { openDedicationModal(); }, 200);
 }
 function saveHadiyaScheduleTimes() {
-    function getDL(id) { var v = document.getElementById(id).value; return v ? new Date(v).toISOString() : ''; }
+    var cur = currentHadiyaDetails && currentHadiyaDetails.current;
+    if (!cur || !cur.startDate) { showSnackbar("No Hadiya selected.", true); return; }
+    function getDL(id) {
+        var v = document.getElementById(id).value;
+        if (!v) return '';
+        // Treat datetime-local value as IST (UTC+5:30) explicitly
+        return v + ':00+05:30';
+    }
     var deadlineStr = getDL('hadiyaDeadlineInput');
     var nextStr = getDL('hadiyaNextStartInput');
     if (!deadlineStr || !nextStr) { showSnackbar("Please set both date-time values.", true); return; }
     document.getElementById('hadiyaConfigSaveBtn').disabled = true;
     document.getElementById('hadiyaConfigSaveBtn').innerText = "Saving...";
-    var dateVal = document.getElementById('dateInput').value;
     window.appApi.withSuccessHandler(function(r) {
         document.getElementById('hadiyaConfigSaveBtn').disabled = false;
         document.getElementById('hadiyaConfigSaveBtn').innerHTML = 'Save Schedule Times<br>நேரத்தை சேமிக்க';
         if (r.success) {
             showSnackbar("Schedule times saved!", false);
-            if (dateVal) fetchHadiyaDetails(dateVal);
+            if (cur.startDate) fetchHadiyaDetails(cur.startDate);
         } else {
             showSnackbar("Failed: " + (r.error || 'Error'), true);
         }
-    }).updateHadiyaScheduleTimes(dateVal, deadlineStr, nextStr);
+    }).updateHadiyaScheduleTimes(cur.startDate, deadlineStr, nextStr);
 }
 
 function navigateHadiya(dir) {

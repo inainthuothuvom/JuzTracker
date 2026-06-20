@@ -363,7 +363,7 @@
             '<hr style="border:none;border-top:1px solid #30363d;margin:0;">' +
             '<div class="notif-panel-header">' +
             '<span style="font-weight:600;font-size:0.9rem;">Notifications</span>' +
-            '<button class="notif-action-btn" onclick="window.AppNotifications.markAllAsRead()" style="margin-left:auto;">Mark all read</button>' +
+            '<button class="notif-action-btn" onclick="window.AppNotifications.markAllAsRead()" style="margin-left:auto;">Archive all</button>' +
             '</div>' +
             '<div class="notif-tabs">' +
             '<button class="notif-tab active" data-tab="active" onclick="window.AppNotifications.switchTab(\'active\')">Active</button>' +

@@ -1,0 +1,11 @@
+{
+  "appId": "com.inainthuothuvom.juztracker",
+  "appName": "JuzTracker",
+  "server": {
+    "url": "https://inainthuothuvom.github.io/JuzTracker/",
+    "cleartext": false
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}

@@ -23,6 +23,7 @@
     <div id="hadiyaActionBar" class="hadiya-action-bar">
         <button id="hadiyaMenuBtn" onclick="openHadiyaMenuModal()" class="menu-icon-btn">☰</button>
         <button id="homeBtn" onclick="goToCurrentWeek()" class="menu-icon-btn" title="Current Week"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 0 0 1 1h3m10-11l2 2m-2-2v10a1 1 0 0 1-1 1h-3m-6 0a1 1 0 0 0 1-1v-4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v4a1 1 0 0 0 1 1m-6 0h6"/></svg></button>
+        <button id="installBtn" onclick="promptInstall()" class="menu-icon-btn" title="Install App" style="display:none;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
         <div style="flex:1;"></div>
         <button id="authBtn" onclick="handleAuthClick()" class="auth-btn">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-7 8-7s8 3 8 7"/></svg>
@@ -705,6 +706,27 @@
     <script src="script-notify.js"></script>
     <script src="script-main.js"></script>
     <script>
+        var deferredPrompt = null;
+        window.addEventListener('beforeinstallprompt', function(e) {
+            e.preventDefault();
+            deferredPrompt = e;
+            var btn = document.getElementById('installBtn');
+            if (btn) btn.style.display = '';
+        });
+        function promptInstall() {
+            if (!deferredPrompt) return;
+            deferredPrompt.prompt();
+            deferredPrompt.userChoice.then(function(choiceResult) {
+                deferredPrompt = null;
+                var btn = document.getElementById('installBtn');
+                if (btn) btn.style.display = 'none';
+            });
+        }
+        window.addEventListener('appinstalled', function() {
+            deferredPrompt = null;
+            var btn = document.getElementById('installBtn');
+            if (btn) btn.style.display = 'none';
+        });
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('sw.js');
         }
