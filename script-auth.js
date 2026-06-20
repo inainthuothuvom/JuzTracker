@@ -85,6 +85,19 @@
         var excBtn = document.getElementById('exceptionActionBtn');
         if (excBtn) excBtn.style.display = isAdmin ? '' : 'none';
 
+        // Lock date input for non-admins and unsigned users - always show current time
+        var dateInput = document.getElementById('dateInput');
+        if (dateInput) {
+            if (!currentUser || (currentUser && currentUser.role !== 'admin')) {
+                dateInput.setAttribute('disabled', 'disabled');
+                dateInput.style.opacity = '0.7';
+                dateInput.style.cursor = 'not-allowed';
+            } else {
+                dateInput.removeAttribute('disabled');
+                dateInput.style.opacity = '';
+                dateInput.style.cursor = '';
+            }
+        }
     }
 
     function isValidEmail(v) {

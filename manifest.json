@@ -3,7 +3,9 @@
   "short_name": "Inainthu Othuvom",
   "description": "இனைந்து ஓதுவோம்",
   "start_url": "https://inainthuothuvom.github.io/JuzTracker/",
+  "scope": "/JuzTracker/",
   "display": "standalone",
+  "display_override": ["standalone", "browser"],
   "background_color": "#161b22",
   "theme_color": "#0d1117",
   "icons": [

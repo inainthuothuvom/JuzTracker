@@ -318,7 +318,8 @@ var today = new Date(nowIST); today.setHours(0,0,0,0,0);
                             nextStartISO: nextStartISO,
                             deadlineDisplay: deadlineDisplay,
                             nextStartDisplay: nextStartDisplay,
-                            rawIdx: idx
+                            rawIdx: idx,
+                            startDate: row.start_date
                         };
                     };
                      function parseDT(str) {
@@ -582,7 +583,9 @@ var result = {
                                         var nTitle = statusUpdate + ' - ' + enName + ' | ' + taName;
                                         var nBody = 'Juz ' + juzNum + ' | Week ' + formatDateDDMMMYYYY(monday) + ' | ' + oldStatus + ' → ' + statusUpdate;
                                         var nBodyTa = 'ஜுஸ் ' + juzNum + ' | வாரம் ' + formatDateDDMMMYYYY(monday) + ' | ' + oldStatus + ' → ' + statusUpdate;
-                                        var notificationPromise = window.AppNotifications.insertToAllAdmins ? window.AppNotifications.insertToAllAdmins(nTitle, nBody + '\n' + nBodyTa, true) : Promise.resolve();
+                                        var updaterDisplay = cu ? (cu.name || 'Unknown') : 'Web User';
+                                        var adminBody = nBody + '\n' + nBodyTa + '\nBy: ' + updaterDisplay;
+                                        var notificationPromise = window.AppNotifications.insertToAllAdmins ? window.AppNotifications.insertToAllAdmins(nTitle, adminBody, true) : Promise.resolve();
                                         if (cu && cu.customId && cu.role !== 'admin') notificationPromise = notificationPromise.then(function() { return window.AppNotifications.insert(nTitle, nBody + '\n' + nBodyTa, cu.customId, 'user'); });
                                         if (customId && (!cu || cu.customId !== customId)) notificationPromise = notificationPromise.then(function() { return window.AppNotifications.notifyTargetUser ? window.AppNotifications.notifyTargetUser(nTitle, nBody + '\n' + nBodyTa, customId) : Promise.resolve(); });
                                         notificationPromise.then(function() { if (ok) ok({ success: true }); });
@@ -745,7 +748,9 @@ var result = {
                                             var nTitle = (existing.status === 'Exception Raised' ? 'Support ' + newSupportStatus : 'Status Update') + ' - ' + enName + ' | ' + (typeof readerTaName !== 'undefined' ? readerTaName : '');
                                             var nBody = 'Juz ' + juzNum + ' | Week ' + formatDateDDMMMYYYY(monday) + (existing.status === 'Exception Raised' ? ' | Support: ' + supEnName : '');
                                             var nBodyTa = 'ஜுஸ் ' + juzNum + ' | வாரம் ' + formatDateDDMMMYYYY(monday) + (existing.status === 'Exception Raised' ? ' | உதவி: ' + (typeof supTaName !== 'undefined' ? supTaName : supEnName) : '');
-                                            window.AppNotifications.insertToAllAdmins(nTitle, nBody + '\n' + nBodyTa, true);
+                                            var updaterDisplay = cu ? (cu.name || 'Unknown') : 'Web User';
+                                            var adminBody = nBody + '\n' + nBodyTa + '\nBy: ' + updaterDisplay;
+                                            window.AppNotifications.insertToAllAdmins(nTitle, adminBody, true);
                                         }
                                     });
                                 } catch(emailErr) {
@@ -823,7 +828,9 @@ var result = {
                                             var nTitle = 'Support Assigned - ' + enName + ' | ' + taName;
                                             var nBody = 'Juz ' + (existing.juz_number || '-') + ' | Week ' + formatDateDDMMMYYYY(monday) + ' | Support: ' + supEnName;
                                             var nBodyTa = 'ஜுஸ் ' + (existing.juz_number || '-') + ' | வாரம் ' + formatDateDDMMMYYYY(monday) + ' | உதவி: ' + supTaName;
-                                            var notificationPromise = window.AppNotifications.insertToAllAdmins ? window.AppNotifications.insertToAllAdmins(nTitle, nBody + '\n' + nBodyTa, true) : Promise.resolve();
+                                            var updaterDisplay = cu ? (cu.name || 'Unknown') : 'Web User';
+                                            var adminBody = nBody + '\n' + nBodyTa + '\nBy: ' + updaterDisplay;
+                                            var notificationPromise = window.AppNotifications.insertToAllAdmins ? window.AppNotifications.insertToAllAdmins(nTitle, adminBody, true) : Promise.resolve();
                                             if (cu && cu.customId && cu.role !== 'admin') notificationPromise = notificationPromise.then(function() { return window.AppNotifications.insert(nTitle, nBody + '\n' + nBodyTa, cu.customId, 'user'); });
                                         if (customId && (!cu || cu.customId !== customId)) notificationPromise = notificationPromise.then(function() { return window.AppNotifications.notifyTargetUser ? window.AppNotifications.notifyTargetUser(nTitle, nBody + '\n' + nBodyTa, customId) : Promise.resolve(); });
                                             notificationPromise.then(function() { if (ok) ok({ success: true, assignedName: supName }); });
@@ -928,18 +935,16 @@ var result = {
             // ----------------------------------------------------------------
             // updateHadiyaScheduleTimes
             // ----------------------------------------------------------------
-            updateHadiyaScheduleTimes: function(selectedDate, deadlineISO, nextStartISO) {
+            updateHadiyaScheduleTimes: function(startDate, deadlineISO, nextStartISO) {
                 var self = this;
                 var ok = _ok;
                 try {
-                    var friday = normalizeToFriday(selectedDate);
-                    if (!friday) { if (ok) ok({ success: false, error: 'Invalid date' }); return this; }
-                    _supabase.from('hadiya_details').select('start_date').lte('start_date', friday).order('start_date', { ascending: false }).limit(1).single().then(function(rGet) {
-                        if (!rGet.data) { if (ok) ok({ success: false, error: 'Hadiya row not found' }); return; }
-                        _supabase.from('hadiya_details').update({ countdown_end_moment: deadlineISO, next_hadiya_start_moment: nextStartISO }).eq('start_date', rGet.data.start_date).then(function(rUp) {
-                            if (rUp.error) { if (ok) ok({ success: false, error: rUp.error.message }); return; }
-                            if (ok) ok({ success: true, deadline: deadlineISO, nextStart: nextStartISO });
-                        });
+                    if (!startDate) { if (ok) ok({ success: false, error: 'No start date provided' }); return this; }
+                    _supabase.from('hadiya_details').update({ countdown_end_moment: deadlineISO, next_hadiya_start_moment: nextStartISO }).eq('start_date', startDate).then(function(rUp) {
+                        if (rUp.error) { if (ok) ok({ success: false, error: rUp.error.message }); return; }
+                        if (ok) ok({ success: true, deadline: deadlineISO, nextStart: nextStartISO });
+                    }).catch(function(err) {
+                        if (ok) ok({ success: false, error: 'Update failed: ' + (err.message || err) });
                     });
                 } catch(err) { if (ok) ok({ success: false, error: err.toString() }); }
                 return this;
