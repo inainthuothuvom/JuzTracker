@@ -378,8 +378,10 @@ var today = new Date(nowIST); today.setHours(0,0,0,0,0);
                     // when the user is viewing the hadiya that's actually active right now
                     // (e.g. on the current hadiya's start Friday before next_hadiya_start_moment).
                     todayIdx = applyAdvanceLogic(todayIdx, nowIST);
-                    // Collect completed / reciting lists from weekly_status (use Friday week)
-                    var targetRef = latestDate || new Date(0);
+                    // Collect completed / reciting lists from weekly_status (use the *active* hadiya's week,
+                    // not latestDate — on the current hadiya's start Friday latestDate points at next
+                    // week's row, which would pull counts for the wrong week).
+                    var targetRef = ld(curRow.startDate) || new Date(0);
                     targetRef.setHours(0,0,0,0,0);
                     var tDay = targetRef.getDay();
                     var tDiff = (tDay >= 5) ? (tDay - 5) : (tDay + 2);
