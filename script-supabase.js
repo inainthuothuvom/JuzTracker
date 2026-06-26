@@ -337,6 +337,32 @@ var today = new Date(nowIST); today.setHours(0,0,0,0,0);
                      function fmtDL(d) {
                         return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
                     }
+                    // Helper: apply same advance logic used for the selected date,
+                    // but parameterised by a reference Date so it works for "today" too.
+                    // This ensures todayIdx reflects the *active* hadiya for now,
+                    // not just the latest row with start_date <= today.
+                    function applyAdvanceLogic(idx, refTime) {
+                        if (idx < 0) return idx;
+                        // 1. If we're before the previous row's nextStartISO, step back
+                        if (idx > 0) {
+                            var prevRowRaw = getRowData(idx - 1);
+                            if (prevRowRaw && prevRowRaw.nextStartISO) {
+                                var prevStartDT = parseDT(prevRowRaw.nextStartISO);
+                                if (!isNaN(prevStartDT.getTime()) && refTime.getTime() < prevStartDT.getTime()) {
+                                    idx--;
+                                }
+                            }
+                        }
+                        // 2. If we're at/after the current row's nextStartISO, step forward
+                        var r = getRowData(idx);
+                        if (r && r.nextStartISO && idx + 1 < hadData.length) {
+                            var nextStartDT = parseDT(r.nextStartISO);
+                            if (!isNaN(nextStartDT.getTime()) && refTime.getTime() >= nextStartDT.getTime()) {
+                                idx++;
+                            }
+                        }
+                        return idx;
+                    }
                     // Read nextStart for cutoff
                     var curRow = getRowData(currentIdx);
                     if (!curRow) { if (ok) ok(null); return; }
@@ -344,25 +370,14 @@ var today = new Date(nowIST); today.setHours(0,0,0,0,0);
                     var selParts = selectedDate.match(/^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})/);
                     if (selParts) {
                         var selIST = new Date(+selParts[1], +selParts[2]-1, +selParts[3], +selParts[4], +selParts[5]);
-                        // 1. Check if current hadiya has started — compare against previous row's nextStartISO
-                        if (currentIdx > 0) {
-                            var prevRowRaw = getRowData(currentIdx - 1);
-                            if (prevRowRaw && prevRowRaw.nextStartISO) {
-                                var prevStartDT = parseDT(prevRowRaw.nextStartISO);
-                                if (!isNaN(prevStartDT.getTime()) && selIST.getTime() < prevStartDT.getTime()) {
-                                    currentIdx--; curRow = getRowData(currentIdx);
-                                }
-                            }
-                        }
-                        // 2. Check if next hadiya has started — compare against current row's nextStartISO
-                        if (curRow && curRow.nextStartISO) {
-                            var nextStartDT = parseDT(curRow.nextStartISO);
-                            if (!isNaN(nextStartDT.getTime()) && selIST.getTime() >= nextStartDT.getTime() && currentIdx + 1 < hadData.length) {
-                                currentIdx++; curRow = getRowData(currentIdx);
-                            }
-                        }
+                        currentIdx = applyAdvanceLogic(currentIdx, selIST);
+                        curRow = getRowData(currentIdx);
                         if (!curRow) { if (ok) ok(null); return; }
                     }
+                    // Apply the same logic to todayIdx so isCurrentWeek stays true
+                    // when the user is viewing the hadiya that's actually active right now
+                    // (e.g. on the current hadiya's start Friday before next_hadiya_start_moment).
+                    todayIdx = applyAdvanceLogic(todayIdx, nowIST);
                     // Collect completed / reciting lists from weekly_status (use Friday week)
                     var targetRef = latestDate || new Date(0);
                     targetRef.setHours(0,0,0,0,0);
