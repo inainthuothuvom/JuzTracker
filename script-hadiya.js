@@ -411,7 +411,7 @@ function displayHadiya(res) {
 }
 
 function updateHadiyaStatusUI(newStatus) {
-    const dateVal = document.getElementById('dateInput').value;
+    const dateVal = (currentHadiyaDetails && currentHadiyaDetails.current && currentHadiyaDetails.current.startDate) || document.getElementById('dateInput').value;
     if (!dateVal) return;
     window.appApi.withSuccessHandler(function(r) {
         if (r.success) {
