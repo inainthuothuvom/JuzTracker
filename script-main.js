@@ -195,6 +195,15 @@ function refreshUserDropdown(dateVal) {
 }
 
 function goToCurrentWeek() {
+    // Clear all in-memory caches so latest data is fetched
+    currentHadiyaDetails = null;
+    fetchedStateCache = null;
+    currentActiveUserId = null;
+    currentActiveRawDate = null;
+    currentActiveJuzNumber = null;
+    currentSupportingUserId = null;
+    if (typeof rawReportData !== 'undefined') rawReportData = [];
+    if (typeof currentReportWeek !== 'undefined') currentReportWeek = '';
     var now = new Date();
     var IST_MS = 5.5 * 3600000;
     var ist = new Date(now.getTime() + now.getTimezoneOffset() * 60000 + IST_MS);
@@ -284,6 +293,7 @@ function resetAssignmentDetails() {
     currentActiveRawDate = null;
     currentActiveJuzNumber = null;
     fetchedStateCache = null;
+    currentHadiyaDetails = null;
     document.getElementById('hadiyaBox').classList.add('hadiya-loading');
     const nextHadiyaLockBanner = document.getElementById('nextHadiyaLockBanner');
     if (nextHadiyaLockBanner) nextHadiyaLockBanner.style.display = "none";

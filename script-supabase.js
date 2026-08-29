@@ -269,6 +269,27 @@
                 _supabase.from('hadiya_details').select('*').order('start_date', { ascending: true }).then(function(rH) {
                     if (!rH.data || rH.data.length === 0) { if (ok) ok(null); return; }
                     var hadData = rH.data;
+                    // Fetch members to resolve hadiya nominee names via nominated_member_id + effective_date
+                    _supabase.from('members').select('custom_id,name_en,name_ta,effective_date').then(function(rM) {
+                    var membersData = (rM.data || []);
+                    // Helper: resolve member name for a given custom_id at a specific hadiya start_date
+                    function resolveHadiyaMember(customId, hadiyaStartDate) {
+                        if (!customId) return null;
+                        var selStr = hadiyaStartDate ? String(hadiyaStartDate).slice(0, 10) : '';
+                        var cands = membersData.filter(function(m) { return String(m.custom_id) === String(customId); });
+                        if (cands.length === 0) return null;
+                        var best = null;
+                        cands.forEach(function(m) {
+                            var eff = m.effective_date;
+                            if (!eff) {
+                                if (!best || best.effective_date) best = m;
+                            } else {
+                                var effStr = String(eff).slice(0, 10);
+                                if (effStr <= selStr && (!best || !best.effective_date || String(best.effective_date).slice(0, 10) < effStr)) best = m;
+                            }
+                        });
+                        return best;
+                    }
                     // Find currentIndex (latest <= inputDate)
                     var currentIdx = -1; var latestDate = null;
                     for (var i = 0; i < hadData.length; i++) {
@@ -287,13 +308,26 @@ var today = new Date(nowIST); today.setHours(0,0,0,0,0);
                           if (rd <= today && (!todayDate || rd > todayDate)) { todayDate = rd; todayIdx = i; }
                       }
                      var getRowData = function(idx) {
-                        if (idx < 0 || idx >= hadData.length || !hadData[idx].nominated_to) return null;
+                        // Use nominated_member_id if present, fallback to legacy nominated_to for transition period
+                        if (idx < 0 || idx >= hadData.length) return null;
                         var row = hadData[idx];
+                        var hasMemberId = row.nominated_member_id != null && String(row.nominated_member_id).trim() !== '';
+                        var hasLegacyName = row.nominated_to != null && String(row.nominated_to).trim() !== '';
+                        if (!hasMemberId && !hasLegacyName) return null;
                         var startDate = ld(row.start_date);
                         var endDate = new Date(startDate); endDate.setDate(endDate.getDate() + 6);
                         var rangeStr = formatDateDDMMM(startDate) + ' - ' + formatDateDDMMM(endDate);
-                        var nominatedTo = row.nominated_to || '';
-                        var nominatedToTa = row.nominated_to_ta || '';
+                        var nominatedTo = '', nominatedToTa = '';
+                        if (hasMemberId) {
+                            var mem = resolveHadiyaMember(row.nominated_member_id, row.start_date);
+                            nominatedTo = mem ? (mem.name_en || '') : '';
+                            nominatedToTa = mem ? (mem.name_ta || '') : '';
+                            // Fallback to legacy text if member not found (e.g. member deleted)
+                            if (!nominatedTo && hasLegacyName) { nominatedTo = row.nominated_to || ''; nominatedToTa = row.nominated_to_ta || ''; }
+                        } else {
+                            nominatedTo = row.nominated_to || '';
+                            nominatedToTa = row.nominated_to_ta || '';
+                        }
                         var dedicatedTo = row.dedicated_to || '';
                         var dedicatedToTa = row.dedicated_to_ta || '';
                         var hadiyaStatus = row.status || 'Pending';
@@ -420,9 +454,10 @@ var result = {
                              recitingList: recitingList,
                              supportersList: supportersList
                          };
-                         if (ok) ok(result);
-                    });
-                });
+                          if (ok) ok(result);
+                     });
+                    }); // end members fetch
+                 });
                 return this;
             },
             // ----------------------------------------------------------------
