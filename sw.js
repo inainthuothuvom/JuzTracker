@@ -1,4 +1,4 @@
-const CACHE = 'inainthu-othuvom-v1';
+const CACHE = 'inainthu-othuvom-v2';
 
 const STATIC_ASSETS = [
   '/',

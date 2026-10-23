@@ -362,8 +362,11 @@
                 <button onclick="closeHadiyaMenuModal(); setTimeout(function(){ openDedicationModal(); },200);" style="width:100%;padding:12px;margin-bottom:6px;background:#1c2128;border:1px solid #30363d;border-radius:8px;color:#e6edf3;font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;">
                     🎯 Dedication Settings<br>அர்ப்பணிப்பு அமைப்புகள்
                 </button>
-                <button onclick="openHadiyaMenuView('hadiyaMenuStatus')" style="width:100%;padding:12px;background:#1c2128;border:1px solid #30363d;border-radius:8px;color:#e6edf3;font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;">
+                <button onclick="openHadiyaMenuView('hadiyaMenuStatus')" style="width:100%;padding:12px;margin-bottom:6px;background:#1c2128;border:1px solid #30363d;border-radius:8px;color:#e6edf3;font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;">
                     ✅ Hadiya Status Update<br>ஹதியா நிலை புதுப்பிப்பு
+                </button>
+                <button onclick="openHadiyaMenuView('hadiyaMenuDetails')" style="width:100%;padding:12px;background:#1c2128;border:1px solid #30363d;border-radius:8px;color:#e6edf3;font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;">
+                    🔄 Hadiya Details<br>ஹதியா விவரங்கள்
                 </button>
             </div>
             <button id="manageMembersMenuItem" onclick="closeHadiyaMenuModal(); setTimeout(function(){ openMemberManager(); },200);" style="width:100%;padding:14px;background:#1c2128;border:1px solid #30363d;border-radius:8px;color:#e6edf3;font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;">
@@ -411,6 +414,19 @@
             </button>
         </div>
 
+        <!-- ─── HADIYA DETAILS (REORDER / RENAME) ─── -->
+        <div id="hadiyaMenuDetails" style="display:none;">
+            <div class="modal-header">
+                <div style="display:flex;justify-content:space-between;align-items:center;width:100%;">
+                    <span class="close-btn" style="font-size:1.2rem;color:#e6edf3;position:static;" onclick="goBackHadiyaMenu()">←</span>
+                    <span class="close-btn" onclick="closeHadiyaMenuModal()">&times;</span>
+                </div>
+            </div>
+            <div class="modal-title" style="font-size:1rem;color:#c9b896;margin-bottom:5px;">Hadiya Details / ஹதியா விவரங்கள்</div>
+            <div style="font-size:0.75rem;color:#8b949e;margin-bottom:8px;">Move a Hadiya up/down to rotate nominees, or change the name for one week.</div>
+            <div id="hadiyaDetailsListContainer" style="max-height:55vh;overflow-y:auto;"></div>
+        </div>
+
     </div>
 </div>
 
@@ -428,6 +444,28 @@
         </div>
         <button class="btn-status-completed status-btn" onclick="submitHadiyaEditComplete()" style="margin-top:0; padding:12px;">✅ Completed <br> நிறைவேறியது</button>
         <button class="btn-status-reciting status-btn" onclick="openHadiyaEditDedication()" style="margin-top:8px; padding:12px;">🎯 Add Dedication <br> அர்ப்பணிப்பை சேர்க்க </button>
+    </div>
+</div>
+
+<div id="hadiyaNameEditModal" class="modal">
+    <div class="modal-content" style="max-width:380px;">
+        <div class="modal-header">
+            <div style="display:flex;justify-content:flex-end;align-items:center;width:100%;">
+                <span class="close-btn" onclick="closeHadiyaNameEditModal()">&times;</span>
+            </div>
+        </div>
+        <div class="modal-title" style="font-size:1rem;color:#79c0ff;margin-bottom:5px;">Change Hadiya Name / பெயரை மாற்று</div>
+        <div id="hadiyaNameEditRange" style="font-size:0.8rem;color:#8b949e;margin-bottom:10px;"></div>
+        <div style="margin-bottom:10px;">
+            <label style="font-size:0.75rem;color:#c9d1d9;display:block;margin-bottom:4px;">Name (English)</label>
+            <input type="text" id="hadiyaNameEnInput" placeholder="Name in English" style="width:100%;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#e6edf3;padding:10px;font-size:0.85rem;font-family:inherit;box-sizing:border-box;">
+        </div>
+        <div style="margin-bottom:10px;">
+            <label style="font-size:0.75rem;color:#c9d1d9;display:block;margin-bottom:4px;">பெயர் (தமிழ்)</label>
+            <input type="text" id="hadiyaNameTaInput" placeholder="பெயர் தமிழில்" style="width:100%;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#e6edf3;padding:10px;font-size:0.85rem;font-family:inherit;box-sizing:border-box;">
+        </div>
+        <div style="font-size:0.7rem;color:#d29922;margin-bottom:10px;">⚠ This overrides the member name for this week only.</div>
+        <button id="hadiyaNameSaveBtn" onclick="saveHadiyaNameOverride()" style="width:100%;padding:10px;font-size:0.8rem;background:#1f6feb;border:none;border-radius:8px;color:#fff;font-weight:600;cursor:pointer;font-family:inherit;">Save Name<br>பெயரை சேமிக்க</button>
     </div>
 </div>
 

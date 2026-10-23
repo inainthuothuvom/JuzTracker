@@ -110,6 +110,7 @@ function openHadiyaMenuModal() {
     document.getElementById('hadiyaMenuMain').style.display = 'block';
     document.getElementById('hadiyaMenuSchedule').style.display = 'none';
     document.getElementById('hadiyaMenuStatus').style.display = 'none';
+    document.getElementById('hadiyaMenuDetails').style.display = 'none';
     document.getElementById('hadiyaMenuModal').style.display = 'flex';
 }
 function closeHadiyaMenuModal() {
@@ -142,7 +143,9 @@ function openHadiyaMenuView(viewId) {
     document.getElementById('hadiyaMenuMain').style.display = 'none';
     document.getElementById('hadiyaMenuSchedule').style.display = 'none';
     document.getElementById('hadiyaMenuStatus').style.display = 'none';
+    document.getElementById('hadiyaMenuDetails').style.display = 'none';
     document.getElementById(viewId).style.display = 'block';
+    if (viewId === 'hadiyaMenuDetails') loadHadiyaDetailsList();
     hadiyaMenuNavStack.push('hadiyaMenuMain');
 }
 function goBackHadiyaMenu() {
@@ -154,6 +157,7 @@ function goBackHadiyaMenu() {
     document.getElementById('hadiyaMenuMain').style.display = 'none';
     document.getElementById('hadiyaMenuSchedule').style.display = 'none';
     document.getElementById('hadiyaMenuStatus').style.display = 'none';
+    document.getElementById('hadiyaMenuDetails').style.display = 'none';
     document.getElementById(prev).style.display = 'block';
 }
 function submitHadiyaEditComplete() {
@@ -770,4 +774,167 @@ function saveDedication() {
             showSnackbar("Failed: " + (r.error || 'Error'), true);
         }
     }).updateHadiyaDedication(dateVal, namesEn.join(';'), namesTa.join(';'), purposesEn.join(';'), purposesTa.join(';'));
+}
+
+var hadiyaDetailsList = [];
+var hadiyaRenameStartDate = null;
+
+function loadHadiyaDetailsList() {
+    var container = document.getElementById('hadiyaDetailsListContainer');
+    if (!container) return;
+    var savedScrollTop = container.scrollTop;
+    container.innerHTML = '<div style="font-size:0.8rem;color:#8b949e;">Loading...</div>';
+    window.appApi.withSuccessHandler(function(rows) {
+        hadiyaDetailsList = rows || [];
+        renderHadiyaDetailsList();
+        container.scrollTop = savedScrollTop;
+    }).withFailureHandler(function(e) {
+        var msg = (e && e.message) ? e.message : (typeof e === 'string' ? e : 'Unknown error');
+        container.innerHTML = '<div style="font-size:0.8rem;color:#f87171;">Failed to load Hadiya details.</div>';
+        showSnackbar("Failed to load Hadiya details: " + msg, true);
+    }).getAllHadiyaDetails();
+}
+
+function renderHadiyaDetailsList() {
+    var container = document.getElementById('hadiyaDetailsListContainer');
+    if (!container) return;
+    if (hadiyaDetailsList.length === 0) {
+        container.innerHTML = '<div style="font-size:0.8rem;color:#8b949e;">No Hadiya details found.</div>';
+        return;
+    }
+    var arrowStyle = 'background:#21262d;border:1px solid #30363d;border-radius:4px;color:#c9d1d9;padding:2px 8px;font-size:0.7rem;cursor:pointer;font-family:inherit;';
+    var editStyle = 'background:none;border:1px solid #79c0ff;border-radius:4px;color:#79c0ff;font-size:0.7rem;padding:3px 8px;cursor:pointer;font-family:inherit;';
+    var html = '';
+    hadiyaDetailsList.forEach(function(row, idx) {
+        var statusColor = row.status === 'Completed' ? '#3fb950' : '#8b949e';
+        var overrideBadge = row.isOverride
+            ? '<span style="margin-left:6px;font-size:0.6rem;color:#d29922;border:1px solid #d29922;border-radius:8px;padding:0 5px;">CUSTOM</span>'
+            : '';
+        html += '<div style="border:1px solid ' + (row.isOverride ? '#d29922' : '#30363d') + ';border-radius:8px;padding:10px;margin-bottom:8px;background:#0d1117;">' +
+            '<div style="display:flex;gap:8px;align-items:flex-start;justify-content:space-between;">' +
+                '<div style="min-width:0;">' +
+                    '<div style="font-size:0.7rem;color:#8b949e;font-weight:600;">' + escapeHtml(row.range || row.startDate) +
+                        ' <span style="color:' + statusColor + ';">· ' + escapeHtml(row.status || 'Pending') + '</span>' +
+                    '</div>' +
+                    '<div style="font-size:0.85rem;color:#e6edf3;font-weight:600;word-break:break-word;">' + escapeHtml(row.nameEn || 'No nominee') + overrideBadge + '</div>' +
+                    (row.nameTa ? '<div style="font-size:0.75rem;color:#8b949e;">' + escapeHtml(row.nameTa) + '</div>' : '') +
+                '</div>' +
+                '<div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;">' +
+                    '<button onclick="moveHadiyaNominee(' + idx + ',-1)" style="' + arrowStyle + '" ' + (idx === 0 ? 'disabled' : '') + '>▲</button>' +
+                    '<button onclick="moveHadiyaNominee(' + idx + ',1)" style="' + arrowStyle + '" ' + (idx === hadiyaDetailsList.length - 1 ? 'disabled' : '') + '>▼</button>' +
+                '</div>' +
+            '</div>' +
+            '<div style="display:flex;justify-content:flex-end;margin-top:6px;">' +
+                '<button onclick="openHadiyaNameEditModal(' + idx + ')" style="' + editStyle + '">✏️ Change Name</button>' +
+            '</div>' +
+        '</div>';
+    });
+    container.innerHTML = html;
+}
+
+function moveHadiyaNominee(idx, dir) {
+    var target = idx + dir;
+    if (target < 0 || target >= hadiyaDetailsList.length) return;
+    var a = hadiyaDetailsList[idx];
+    var b = hadiyaDetailsList[target];
+    if (!a || !b) return;
+    var dirText = dir < 0 ? 'up' : 'down';
+    showHadiyaConfirm(
+        'Reorder Hadiya? / வரிசையை மாற்றவா?',
+        'Move "' + (a.nameEn || 'this Hadiya') + '" ' + dirText + ' and swap with "' + (b.nameEn || 'the adjacent Hadiya') + '"?',
+        function() { applyHadiyaMove(a, b); }
+    );
+}
+
+function applyHadiyaMove(a, b) {
+    window.appApi.withSuccessHandler(function(r) {
+        if (r && r.success) {
+            showSnackbar("Hadiya order updated!", false);
+            loadHadiyaDetailsList();
+            refreshHadiyaAfterDetailsChange();
+        } else {
+            showSnackbar("Failed: " + ((r && r.error) || 'Error'), true);
+        }
+    }).withFailureHandler(function(e) {
+        var msg = (e && e.message) ? e.message : (typeof e === 'string' ? e : 'Unknown error');
+        showSnackbar("Failed: " + msg, true);
+    }).swapHadiyaNominees(a.startDate, b.startDate);
+}
+
+function showHadiyaConfirm(title, message, onConfirm) {
+    var overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:center;justify-content:center;';
+    var modal = document.createElement('div');
+    modal.style.cssText = 'background:#161b22;border:1px solid #30363d;border-radius:12px;padding:24px;max-width:340px;width:90%;text-align:center;';
+    var titleEl = document.createElement('div');
+    titleEl.style.cssText = 'font-size:1rem;color:#79c0ff;font-weight:600;margin-bottom:8px;';
+    titleEl.textContent = title;
+    var msgEl = document.createElement('div');
+    msgEl.style.cssText = 'font-size:0.85rem;color:#8b949e;margin-bottom:16px;line-height:1.4;';
+    msgEl.textContent = message;
+    var btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex;gap:8px;justify-content:center;';
+    var yesBtn = document.createElement('button');
+    yesBtn.textContent = 'Confirm';
+    yesBtn.style.cssText = 'background:#1f6feb;color:#fff;border:none;border-radius:8px;padding:8px 20px;font-size:0.85rem;cursor:pointer;font-family:inherit;';
+    var noBtn = document.createElement('button');
+    noBtn.textContent = 'Cancel';
+    noBtn.style.cssText = 'background:#21262d;color:#c9d1d9;border:none;border-radius:8px;padding:8px 20px;font-size:0.85rem;cursor:pointer;font-family:inherit;';
+    btnRow.appendChild(yesBtn);
+    btnRow.appendChild(noBtn);
+    modal.appendChild(titleEl);
+    modal.appendChild(msgEl);
+    modal.appendChild(btnRow);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    yesBtn.onclick = function() { document.body.removeChild(overlay); if (onConfirm) onConfirm(); };
+    noBtn.onclick = function() { document.body.removeChild(overlay); };
+    overlay.onclick = function(e) { if (e.target === overlay) document.body.removeChild(overlay); };
+}
+
+function openHadiyaNameEditModal(idx) {
+    var row = hadiyaDetailsList[idx];
+    if (!row) return;
+    hadiyaRenameStartDate = row.startDate;
+    document.getElementById('hadiyaNameEditRange').innerText = row.range || row.startDate;
+    document.getElementById('hadiyaNameEnInput').value = row.nameEn || '';
+    document.getElementById('hadiyaNameTaInput').value = row.nameTa || '';
+    document.getElementById('hadiyaNameEditModal').style.display = 'flex';
+}
+
+function closeHadiyaNameEditModal() {
+    document.getElementById('hadiyaNameEditModal').style.display = 'none';
+}
+
+function saveHadiyaNameOverride() {
+    var en = document.getElementById('hadiyaNameEnInput').value.trim();
+    var ta = document.getElementById('hadiyaNameTaInput').value.trim();
+    if (!hadiyaRenameStartDate) return;
+    if (!en) { showSnackbar("Name (English) is required.", true); return; }
+    var btn = document.getElementById('hadiyaNameSaveBtn');
+    btn.disabled = true;
+    btn.innerText = "Saving...";
+    window.appApi.withSuccessHandler(function(r) {
+        btn.disabled = false;
+        btn.innerHTML = 'Save Name<br>பெயரை சேமிக்க';
+        if (r && r.success) {
+            closeHadiyaNameEditModal();
+            showSnackbar("Hadiya name updated!", false);
+            loadHadiyaDetailsList();
+            refreshHadiyaAfterDetailsChange();
+        } else {
+            showSnackbar("Failed: " + ((r && r.error) || 'Error'), true);
+        }
+    }).withFailureHandler(function(e) {
+        btn.disabled = false;
+        btn.innerHTML = 'Save Name<br>பெயரை சேமிக்க';
+        var msg = (e && e.message) ? e.message : (typeof e === 'string' ? e : 'Unknown error');
+        showSnackbar("Failed: " + msg, true);
+    }).updateHadiyaName(hadiyaRenameStartDate, en, ta || en);
+}
+
+function refreshHadiyaAfterDetailsChange() {
+    var input = document.getElementById('dateInput');
+    var dateVal = (input && input.value) ? input.value : (currentHadiyaDetails && currentHadiyaDetails.current ? currentHadiyaDetails.current.startDate : '');
+    if (dateVal) fetchHadiyaDetails(dateVal);
 }

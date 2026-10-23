@@ -952,6 +952,128 @@ var result = {
                 return this;
             },
             // ----------------------------------------------------------------
+            // getAllHadiyaDetails - list every hadiya row with resolved nominee name
+            // ----------------------------------------------------------------
+            getAllHadiyaDetails: function() {
+                var ok = _ok, err = _err;
+                function ld(s) {
+                    var m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})/);
+                    return m ? new Date(+m[1], +m[2]-1, +m[3]) : new Date(s);
+                }
+                _supabase.from('hadiya_details')
+                    .select('start_date,nominated_member_id,nominated_to,nominated_to_ta,status')
+                    .order('start_date', { ascending: true })
+                    .then(function(rH) {
+                        if (rH.error) { if (err) err(rH.error); else if (ok) ok([]); return; }
+                        var rows = rH.data || [];
+                        _supabase.from('members').select('custom_id,name_en,name_ta,effective_date').then(function(rM) {
+                            var membersData = rM.data || [];
+                            function resolve(customId, hadiyaStartDate) {
+                                var selStr = hadiyaStartDate ? String(hadiyaStartDate).slice(0, 10) : '';
+                                var cands = membersData.filter(function(m) { return String(m.custom_id) === String(customId); });
+                                if (cands.length === 0) return null;
+                                var best = null;
+                                cands.forEach(function(m) {
+                                    var eff = m.effective_date;
+                                    if (!eff) {
+                                        if (!best || best.effective_date) best = m;
+                                    } else {
+                                        var effStr = String(eff).slice(0, 10);
+                                        if (effStr <= selStr && (!best || !best.effective_date || String(best.effective_date).slice(0, 10) < effStr)) best = m;
+                                    }
+                                });
+                                return best;
+                            }
+                            var out = rows.map(function(row) {
+                                var hasMemberId = row.nominated_member_id != null && String(row.nominated_member_id).trim() !== '';
+                                var hasLegacyName = row.nominated_to != null && String(row.nominated_to).trim() !== '';
+                                var nameEn = '', nameTa = '';
+                                if (hasMemberId) {
+                                    var mem = resolve(row.nominated_member_id, row.start_date);
+                                    nameEn = mem ? (mem.name_en || '') : '';
+                                    nameTa = mem ? (mem.name_ta || '') : '';
+                                    if (!nameEn && hasLegacyName) { nameEn = row.nominated_to || ''; nameTa = row.nominated_to_ta || ''; }
+                                } else {
+                                    nameEn = row.nominated_to || '';
+                                    nameTa = row.nominated_to_ta || '';
+                                }
+                                var sd = ld(row.start_date);
+                                var ed = new Date(sd); ed.setDate(ed.getDate() + 6);
+                                return {
+                                    startDate: row.start_date,
+                                    range: formatDateDDMMM(sd) + ' - ' + formatDateDDMMM(ed),
+                                    nameEn: nameEn,
+                                    nameTa: nameTa,
+                                    isOverride: !hasMemberId && hasLegacyName,
+                                    status: row.status || 'Pending'
+                                };
+                            });
+                            if (ok) ok(out);
+                        });
+                    });
+                return this;
+            },
+            // ----------------------------------------------------------------
+            // updateHadiyaName - override the main name for one week only
+            // ----------------------------------------------------------------
+            updateHadiyaName: function(startDate, nameEn, nameTa) {
+                var ok = _ok, err = _err;
+                if (!startDate) { if (ok) ok({ success: false, error: 'No start date provided' }); return this; }
+                _supabase.from('hadiya_details').update({
+                    nominated_member_id: '',
+                    nominated_to: nameEn || '',
+                    nominated_to_ta: nameTa || nameEn || ''
+                }).eq('start_date', startDate).then(function(rUp) {
+                    if (rUp.error) { if (err) err(rUp.error); else if (ok) ok({ success: false, error: rUp.error.message }); return; }
+                    if (ok) ok({ success: true });
+                }).catch(function(e) {
+                    if (ok) ok({ success: false, error: e && e.message ? e.message : String(e) });
+                });
+                return this;
+            },
+            // ----------------------------------------------------------------
+            // swapHadiyaNominees - rotate the nominee between two hadiya weeks
+            // ----------------------------------------------------------------
+            swapHadiyaNominees: function(startDateA, startDateB) {
+                var ok = _ok, err = _err;
+                if (!startDateA || !startDateB || String(startDateA) === String(startDateB)) {
+                    if (ok) ok({ success: false, error: 'Invalid hadiya rows' });
+                    return this;
+                }
+                _supabase.from('hadiya_details')
+                    .select('start_date,nominated_member_id,nominated_to,nominated_to_ta')
+                    .in('start_date', [startDateA, startDateB])
+                    .then(function(rGet) {
+                        if (rGet.error) { if (err) err(rGet.error); else if (ok) ok({ success: false, error: rGet.error.message }); return; }
+                        var rows = rGet.data || [];
+                        var a = null, b = null;
+                        rows.forEach(function(r) {
+                            if (String(r.start_date) === String(startDateA)) a = r;
+                            if (String(r.start_date) === String(startDateB)) b = r;
+                        });
+                        if (!a || !b) { if (ok) ok({ success: false, error: 'Hadiya row not found' }); return; }
+                        function nomineeFields(src) {
+                            return {
+                                nominated_member_id: src.nominated_member_id == null ? '' : src.nominated_member_id,
+                                nominated_to: src.nominated_to || '',
+                                nominated_to_ta: src.nominated_to_ta || ''
+                            };
+                        }
+                        Promise.all([
+                            _supabase.from('hadiya_details').update(nomineeFields(b)).eq('start_date', a.start_date),
+                            _supabase.from('hadiya_details').update(nomineeFields(a)).eq('start_date', b.start_date)
+                        ]).then(function(results) {
+                            var failed = null;
+                            (results || []).forEach(function(x) { if (x && x.error && !failed) failed = x.error; });
+                            if (failed) { if (ok) ok({ success: false, error: failed.message }); return; }
+                            if (ok) ok({ success: true });
+                        }).catch(function(e) {
+                            if (ok) ok({ success: false, error: e && e.message ? e.message : String(e) });
+                        });
+                    });
+                return this;
+            },
+            // ----------------------------------------------------------------
             // fixAllHadiyaScheduleTimes - updates all rows to correct IST times
             // ----------------------------------------------------------------
             fixAllHadiyaScheduleTimes: function() {
