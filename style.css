@@ -560,6 +560,9 @@
                 gap: 8px;
             }
             .modal-content { width: 100%; max-width: 100%; padding: 12px; }
+            #hadiyaMenuModal { align-items: flex-start !important; padding: 10px 0; }
+            #hadiyaMenuModal .modal-content { margin: 10px auto; max-height: calc(100vh - 20px); max-height: calc(100dvh - 20px); overflow-y: auto; }
+            #hadiyaDetailsListContainer { max-height: none !important; overflow: visible !important; }
             #reportModal,
             #reportModal * { max-width: 100%; }
             #reportModal .modal-content {

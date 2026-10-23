@@ -1,18 +1,18 @@
-const CACHE = 'inainthu-othuvom-v2';
+const CACHE = 'inainthu-othuvom-v3';
 
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/style.css',
+  '/style.css?v=3',
   '/config.js',
-  '/script-auth.js',
-  '/script-email.js',
-  '/script-hadiya.js',
-  '/script-main.js',
-  '/script-notify.js',
-  '/script-report.js',
-  '/script-supabase.js',
-  '/script-utils.js',
+  '/script-auth.js?v=3',
+  '/script-email.js?v=3',
+  '/script-hadiya.js?v=3',
+  '/script-main.js?v=3',
+  '/script-notify.js?v=3',
+  '/script-report.js?v=3',
+  '/script-supabase.js?v=3',
+  '/script-utils.js?v=3',
   '/manifest.json',
   '/icons/icon-192.png',
   '/icons/icon-512.png'
@@ -35,10 +35,17 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
+  if (e.request.method !== 'GET') return;
   const url = new URL(e.request.url);
   if (url.origin === location.origin) {
     e.respondWith(
-      caches.match(e.request).then(cached => cached || fetch(e.request))
+      fetch(e.request).then(res => {
+        if (res && res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE).then(cache => cache.put(e.request, copy));
+        }
+        return res;
+      }).catch(() => caches.match(e.request))
     );
     return;
   }

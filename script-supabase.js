@@ -984,7 +984,9 @@ var result = {
                                 });
                                 return best;
                             }
-                            var out = rows.map(function(row) {
+                            var out = rows.filter(function(row) {
+                                return String(row.status || 'Pending') !== 'Completed';
+                            }).map(function(row) {
                                 var hasMemberId = row.nominated_member_id != null && String(row.nominated_member_id).trim() !== '';
                                 var hasLegacyName = row.nominated_to != null && String(row.nominated_to).trim() !== '';
                                 var nameEn = '', nameTa = '';

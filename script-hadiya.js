@@ -782,24 +782,33 @@ var hadiyaRenameStartDate = null;
 function loadHadiyaDetailsList() {
     var container = document.getElementById('hadiyaDetailsListContainer');
     if (!container) return;
+    if (!window.appApi || typeof window.appApi.getAllHadiyaDetails !== 'function') {
+        container.innerHTML = '<div style="font-size:0.8rem;color:#f87171;">Hadiya details are unavailable in this cached version. Close and reopen the app.</div>';
+        return;
+    }
     var savedScrollTop = container.scrollTop;
     container.innerHTML = '<div style="font-size:0.8rem;color:#8b949e;">Loading...</div>';
-    window.appApi.withSuccessHandler(function(rows) {
-        hadiyaDetailsList = rows || [];
-        renderHadiyaDetailsList();
-        container.scrollTop = savedScrollTop;
-    }).withFailureHandler(function(e) {
-        var msg = (e && e.message) ? e.message : (typeof e === 'string' ? e : 'Unknown error');
+    try {
+        window.appApi.withSuccessHandler(function(rows) {
+            hadiyaDetailsList = rows || [];
+            renderHadiyaDetailsList();
+            container.scrollTop = savedScrollTop;
+        }).withFailureHandler(function(e) {
+            var msg = (e && e.message) ? e.message : (typeof e === 'string' ? e : 'Unknown error');
+            container.innerHTML = '<div style="font-size:0.8rem;color:#f87171;">Failed to load Hadiya details.</div>';
+            showSnackbar("Failed to load Hadiya details: " + msg, true);
+        }).getAllHadiyaDetails();
+    } catch (e) {
         container.innerHTML = '<div style="font-size:0.8rem;color:#f87171;">Failed to load Hadiya details.</div>';
-        showSnackbar("Failed to load Hadiya details: " + msg, true);
-    }).getAllHadiyaDetails();
+        showSnackbar("Failed to load Hadiya details: " + ((e && e.message) ? e.message : String(e)), true);
+    }
 }
 
 function renderHadiyaDetailsList() {
     var container = document.getElementById('hadiyaDetailsListContainer');
     if (!container) return;
     if (hadiyaDetailsList.length === 0) {
-        container.innerHTML = '<div style="font-size:0.8rem;color:#8b949e;">No Hadiya details found.</div>';
+        container.innerHTML = '<div style="font-size:0.8rem;color:#8b949e;">No pending Hadiya details found.</div>';
         return;
     }
     var arrowStyle = 'background:#21262d;border:1px solid #30363d;border-radius:4px;color:#c9d1d9;padding:2px 8px;font-size:0.7rem;cursor:pointer;font-family:inherit;';
