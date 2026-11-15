@@ -1235,7 +1235,7 @@ function buildDepartureWelcomeNode(d) {
         '<div style="background:#161b22;border:1px solid #30363d;border-radius:12px;padding:16px 18px;">' +
             '<div style="font-size:12px;color:#58a6ff;font-weight:700;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">தமிழ்</div>' +
             '<div style="font-size:14px;line-height:1.8;color:#e6edf3;">' +
-                '<p style="margin:0 0 10px;">இந்த வாரம் முதல், <strong>' + esc(d.outTa) + '</strong> அவர்களுக்கு பதிலாக <strong>' + esc(d.inTa) + '</strong> அவர்கள் எங்களுடன் இணைகிறார்.</p>' +
+                '<p style="margin:0 0 10px;">இந்த வாரம் முதல், <strong>' + esc(d.outTa) + '</strong> அவர்களுக்கு பதிலாக <strong>' + esc(d.inTa) + '</strong> அவர்கள் நம் குழுவில் இணைகிறார்.</p>' +
                 '<p style="margin:0 0 10px;">இதுவரை வாராந்திர ஜுஸ் ஓதலில் நீங்கள் காட்டிய அர்ப்பணிப்பிற்கும் பங்களிப்பிற்கும், <strong>' + esc(d.outTa) + '</strong> அவர்களே, ஜஸாக்கல்லாஹு கைர்.</p>' +
                 '<p style="margin:0;"><strong>' + esc(d.inTa) + '</strong> அவர்களே, <strong>இணைந்து ஓதுவோம் (ஹதியா)</strong> குழுவில் உங்களை அன்புடன் வரவேற்கிறோம்.</p>' +
             '</div>' +
