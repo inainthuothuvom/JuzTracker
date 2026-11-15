@@ -1260,7 +1260,7 @@ function openCapturePreview(contentNode, opts) {
     var autoCopy = !!opts.autoCopy;
 
     var overlay = document.createElement('div');
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:9998;background:rgba(13,17,23,0.98);display:flex;align-items:center;justify-content:center;overflow:auto;padding:16px;box-sizing:border-box;';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9998;background:rgba(13,17,23,0.98);display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:24px 16px;box-sizing:border-box;';
 
     var wrapper = document.createElement('div');
     wrapper.style.cssText = 'display:flex;flex-direction:column;align-items:center;max-width:100%;';
