@@ -449,6 +449,10 @@ var result = {
                              next: getRowData(currentIdx + 1),
                              currentIndex: currentIdx,
                              todayIndex: todayIdx,
+                             firstIndex: 0,
+                             lastIndex: hadData.length - 1,
+                             firstStartDate: hadData.length ? hadData[0].start_date : null,
+                             lastStartDate: hadData.length ? hadData[hadData.length - 1].start_date : null,
                              weekStart: mondayStr,
                              completedList: completedList,
                              recitingList: recitingList,
@@ -1177,6 +1181,143 @@ var result = {
                 _supabase.from('members').delete().eq('id', id).then(function(r) {
                     if (r.error) { if (ok) ok({ success: false, error: r.error.message }); return; }
                     if (ok) ok({ success: true });
+                });
+                return this;
+            },
+            // ----------------------------------------------------------------
+            // getNextHadiyaInfo - next week + default nominee (that week's Juz 30)
+            // ----------------------------------------------------------------
+            getNextHadiyaInfo: function() {
+                var ok = _ok, err = _err;
+                function ld(s) {
+                    var m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})/);
+                    return m ? new Date(+m[1], +m[2]-1, +m[3]) : new Date(s);
+                }
+                function addDays(d, n) {
+                    var x = new Date(d); x.setHours(0,0,0,0); x.setDate(x.getDate() + n); return x;
+                }
+                // Latest existing Hadiya week
+                _supabase.from('hadiya_details').select('start_date').order('start_date', { ascending: false }).limit(1).then(function(rLast) {
+                    var lastDate = (rLast.data && rLast.data.length) ? String(rLast.data[0].start_date).slice(0, 10) : null;
+                    var fridayToday = normalizeToFriday(formatLocalDate(new Date()));
+                    var baseDate = (lastDate && fridayToday && lastDate >= fridayToday) ? lastDate : (fridayToday || formatLocalDate(new Date()));
+                    var nextStart = formatLocalDate(addDays(ld(baseDate), 7));
+                    // Find that week's Juz 30 reader. Fallback: whoever had Juz 29
+                    // in the most recent earlier week is next week's Juz 30 reader.
+                    _supabase.from('weekly_status').select('member_id,member_name').eq('week_start', nextStart).eq('juz_number', 30).maybeSingle().then(function(rJ30) {
+                        var wsDefault = null;
+                        if (rJ30.data) {
+                            wsDefault = { customId: String(rJ30.data.member_id), wsName: rJ30.data.member_name || '' };
+                            loadMembersAndReply(nextStart, wsDefault);
+                        } else {
+                            _supabase.from('weekly_status').select('member_id,member_name').lt('week_start', nextStart).eq('juz_number', 29).order('week_start', { ascending: false }).limit(1).then(function(rJ29) {
+                                if (rJ29.data && rJ29.data.length) {
+                                    wsDefault = { customId: String(rJ29.data[0].member_id), wsName: rJ29.data[0].member_name || '' };
+                                }
+                                loadMembersAndReply(nextStart, wsDefault);
+                            }).catch(function() { loadMembersAndReply(nextStart, null); });
+                        }
+                    }).catch(function() { loadMembersAndReply(nextStart, null); });
+
+                    function loadMembersAndReply(nextStartDate, wsDefault) {
+                        _supabase.from('members').select('id,custom_id,name_en,name_ta,effective_date').then(function(rMem) {
+                            if (rMem.error) { if (err) err(rMem.error); else if (ok) ok({ success: false, error: rMem.error.message }); return; }
+                            var membersAll = rMem.data || [];
+                            var active = filterActiveMembers(membersAll, nextStartDate);
+                            var def = null;
+                            if (wsDefault && wsDefault.customId) {
+                                // Resolve the name that applies on that date (handles replacements)
+                                var cands = membersAll.filter(function(m) { return String(m.custom_id) === wsDefault.customId; });
+                                var best = null;
+                                cands.forEach(function(m) {
+                                    var eff = m.effective_date;
+                                    if (!eff) { if (!best || best.effective_date) best = m; }
+                                    else {
+                                        var effStr = String(eff).slice(0, 10);
+                                        if (effStr <= nextStartDate && (!best || !best.effective_date || String(best.effective_date).slice(0, 10) < effStr)) best = m;
+                                    }
+                                });
+                                def = {
+                                    customId: wsDefault.customId,
+                                    nameEn: best ? (best.name_en || '') : (wsDefault.wsName || ''),
+                                    nameTa: best ? (best.name_ta || '') : ''
+                                };
+                            }
+                            if (ok) ok({
+                                success: true,
+                                startDate: nextStartDate,
+                                defaultCustomId: def ? def.customId : '',
+                                defaultNameEn: def ? def.nameEn : '',
+                                defaultNameTa: def ? def.nameTa : '',
+                                members: active.map(function(m) {
+                                    return { id: m.id, custom_id: m.custom_id, name_en: m.name_en || '', name_ta: m.name_ta || '' };
+                                })
+                            });
+                        }).catch(function(e) {
+                            if (err) err(e); else if (ok) ok({ success: false, error: e && e.message ? e.message : String(e) });
+                        });
+                    }
+                }).catch(function(e) {
+                    if (err) err(e); else if (ok) ok({ success: false, error: e && e.message ? e.message : String(e) });
+                });
+                return this;
+            },
+            // ----------------------------------------------------------------
+            // addNextHadiya - insert one Hadiya row for startDate / customId
+            // ----------------------------------------------------------------
+            addNextHadiya: function(startDate, customId) {
+                var ok = _ok, err = _err;
+                var dateOnly = String(startDate || '').slice(0, 10);
+                if (!dateOnly || !customId) { if (ok) ok({ success: false, error: 'Missing date or member.' }); return this; }
+                // Resolve the member name that applies on startDate (handles replacements)
+                _supabase.from('members').select('id,custom_id,name_en,name_ta,effective_date').eq('custom_id', String(customId)).then(function(rMem) {
+                    var cands = rMem.data || [];
+                    var best = null;
+                    cands.forEach(function(m) {
+                        var eff = m.effective_date;
+                        if (!eff) { if (!best || best.effective_date) best = m; }
+                        else {
+                            var effStr = String(eff).slice(0, 10);
+                            if (effStr <= dateOnly && (!best || !best.effective_date || String(best.effective_date).slice(0, 10) < effStr)) best = m;
+                        }
+                    });
+                    var nameEn = best ? (best.name_en || '') : '';
+                    var nameTa = best ? (best.name_ta || '') : '';
+                    var sd = new Date(dateOnly + 'T00:00:00');
+                    var nextFri = new Date(sd); nextFri.setDate(nextFri.getDate() + 7);
+                    // Same IST times used by fixAllHadiyaScheduleTimes:
+                    // 3:00 PM IST = 09:30 UTC, 8:00 PM IST = 14:30 UTC
+                    var dlUTC = new Date(Date.UTC(nextFri.getFullYear(), nextFri.getMonth(), nextFri.getDate(), 9, 30, 0));
+                    var nsUTC = new Date(Date.UTC(nextFri.getFullYear(), nextFri.getMonth(), nextFri.getDate(), 14, 30, 0));
+                    _supabase.from('hadiya_details').insert({
+                        start_date: dateOnly + 'T00:00:00+00:00',
+                        nominated_member_id: String(customId),
+                        nominated_to: nameEn,
+                        nominated_to_ta: nameTa,
+                        dedicated_to: '',
+                        dedicated_to_ta: '',
+                        dedicated_purpose_english: null,
+                        dedicated_purpose_tamil: null,
+                        status: 'Not Started',
+                        countdown_end_moment: dlUTC.toISOString(),
+                        next_hadiya_start_moment: nsUTC.toISOString(),
+                        updated_at: new Date().toISOString()
+                    }).select('id').single().then(function(rIns) {
+                        if (rIns.error) {
+                            var msg = rIns.error.message || 'Insert failed';
+                            if (rIns.error.code === '23505' || /duplicate key|unique/i.test(msg)) {
+                                msg = 'A Hadiya already exists for ' + dateOnly + '.';
+                            }
+                            if (err) err({ message: msg, code: rIns.error.code });
+                            else if (ok) ok({ success: false, error: msg });
+                            return;
+                        }
+                        if (ok) ok({ success: true, id: rIns.data ? rIns.data.id : null });
+                    }).catch(function(e) {
+                        if (ok) ok({ success: false, error: e && e.message ? e.message : String(e) });
+                    });
+                }).catch(function(e) {
+                    if (ok) ok({ success: false, error: e && e.message ? e.message : String(e) });
                 });
                 return this;
             }

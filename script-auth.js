@@ -78,6 +78,8 @@
         if (membersItem) membersItem.style.display = isAdmin ? '' : 'none';
         var menuBtn = document.getElementById('hadiyaMenuBtn');
         if (menuBtn) menuBtn.style.display = isAdmin ? '' : 'none';
+        var captureBtn = document.getElementById('captureMenuBtn');
+        if (captureBtn) captureBtn.style.display = isAdmin ? '' : 'none';
         var shareBtn = document.getElementById('shareBtn');
         if (shareBtn) shareBtn.style.display = isAdmin ? '' : 'none';
         var bulkToggle = document.getElementById('bulkToggleBtn');

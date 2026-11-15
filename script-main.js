@@ -297,8 +297,13 @@ function resetAssignmentDetails() {
     document.getElementById('hadiyaBox').classList.add('hadiya-loading');
     const nextHadiyaLockBanner = document.getElementById('nextHadiyaLockBanner');
     if (nextHadiyaLockBanner) nextHadiyaLockBanner.style.display = "none";
-    var d = document.getElementById('dateInput').value;
+    var input = document.getElementById('dateInput');
+    var d = input ? input.value : '';
     if (d) {
+        if (typeof clampDateToHadiyaBounds === 'function') {
+            var clamped = clampDateToHadiyaBounds(d);
+            if (clamped !== d) { d = clamped; input.value = clamped; }
+        }
         refreshUserDropdown(d);
         fetchHadiyaDetails(d);
     }

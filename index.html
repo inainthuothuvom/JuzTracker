@@ -22,6 +22,7 @@
     <div id="connBanner" class="conn-banner" style="display:none;"></div>
     <div id="hadiyaActionBar" class="hadiya-action-bar">
         <button id="hadiyaMenuBtn" onclick="openHadiyaMenuModal()" class="menu-icon-btn">☰</button>
+        <button id="captureMenuBtn" onclick="openCaptureOptionsModal()" class="menu-icon-btn" title="Capture / படம்" style="display:none;">📷</button>
         <button id="homeBtn" onclick="goToCurrentWeek()" class="menu-icon-btn" title="Current Week"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 0 0 1 1h3m10-11l2 2m-2-2v10a1 1 0 0 1-1 1h-3m-6 0a1 1 0 0 0 1-1v-4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v4a1 1 0 0 0 1 1m-6 0h6"/></svg></button>
         <button id="installBtn" onclick="promptInstall()" class="menu-icon-btn" title="Install App" style="display:none;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
         <div style="flex:1;"></div>
@@ -359,6 +360,9 @@
                 <button onclick="openHadiyaMenuView('hadiyaMenuSchedule')" style="width:100%;padding:12px;margin-bottom:6px;background:#1c2128;border:1px solid #30363d;border-radius:8px;color:#e6edf3;font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;">
                     ⏱ Schedule Settings<br>நேர அமைப்புகள்
                 </button>
+                <button onclick="openHadiyaMenuView('hadiyaMenuAddNext')" style="width:100%;padding:12px;margin-bottom:6px;background:#1c2128;border:1px solid #30363d;border-radius:8px;color:#e6edf3;font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;">
+                    ➕ Add Next Hadiya<br>அடுத்த ஹதியாவை சேர்க்க
+                </button>
                 <button onclick="closeHadiyaMenuModal(); setTimeout(function(){ openDedicationModal(); },200);" style="width:100%;padding:12px;margin-bottom:6px;background:#1c2128;border:1px solid #30363d;border-radius:8px;color:#e6edf3;font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;">
                     🎯 Dedication Settings<br>அர்ப்பணிப்பு அமைப்புகள்
                 </button>
@@ -369,6 +373,7 @@
                     🔄 Hadiya Details<br>ஹதியா விவரங்கள்
                 </button>
             </div>
+
             <button id="manageMembersMenuItem" onclick="closeHadiyaMenuModal(); setTimeout(function(){ openMemberManager(); },200);" style="width:100%;padding:14px;background:#1c2128;border:1px solid #30363d;border-radius:8px;color:#e6edf3;font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;">
                 👥 Manage Members<br>உறுப்பினர்கள் மேலாண்மை
             </button>
@@ -395,6 +400,29 @@
                 <input type="datetime-local" id="hadiyaNextStartInput" style="width:100%;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#e6edf3;padding:10px;font-size:0.85rem;font-family:inherit;box-sizing:border-box;">
             </div>
             <button id="hadiyaConfigSaveBtn" onclick="saveHadiyaScheduleTimes()" style="margin-top:4px;width:100%;padding:10px;font-size:0.8rem;background:#1f6feb;border:none;border-radius:8px;color:#fff;font-weight:600;cursor:pointer;font-family:inherit;">Save Schedule Times<br>நேரத்தை சேமிக்க</button>
+        </div>
+
+        <!-- ─── ADD NEXT HADIYA ─── -->
+        <div id="hadiyaMenuAddNext" style="display:none;">
+            <div class="modal-header">
+                <div style="display:flex;justify-content:space-between;align-items:center;width:100%;">
+                    <span class="close-btn" style="font-size:1.2rem;color:#e6edf3;position:static;" onclick="goBackHadiyaMenu()">←</span>
+                    <span class="close-btn" onclick="closeHadiyaMenuModal()">&times;</span>
+                </div>
+            </div>
+            <div class="modal-title" style="font-size:1rem;color:#c9b896;margin-bottom:5px;">➕ Add Next Hadiya<br>அடுத்த ஹதியாவை சேர்க்க</div>
+            <div id="addNextDateInfo" style="font-size:0.85rem;color:#58a6ff;font-weight:600;margin-bottom:6px;text-align:center;">Loading...</div>
+            <div id="addNextDefaultHint" style="font-size:0.7rem;color:#8b949e;margin-bottom:10px;text-align:center;"></div>
+            <label style="font-size:0.75rem;color:#c9d1d9;display:block;margin-bottom:4px;">Member / உறுப்பினர்</label>
+            <div class="searchable-select-container">
+                <input type="text" id="addNextMemberSearch" class="search-input" placeholder="Type to search..." autocomplete="off"
+                    onfocus="this.select(); openAddNextDropdown()"
+                    oninput="filterAddNextOptions()"
+                    onblur="setTimeout(closeAddNextDropdown, 200)" value="">
+                <div class="searchable-dropdown" id="addNextDropdown"></div>
+                <input type="hidden" id="addNextMemberCustomId" value="">
+            </div>
+            <button id="addNextSaveBtn" onclick="saveNextHadiya()" style="margin-top:12px;width:100%;padding:10px;font-size:0.8rem;background:#1f6feb;border:none;border-radius:8px;color:#fff;font-weight:600;cursor:pointer;font-family:inherit;">Add Hadiya<br>ஹதியாவை சேர்க்க</button>
         </div>
 
         <!-- ─── STATUS UPDATE ─── -->
@@ -427,6 +455,25 @@
             <div id="hadiyaDetailsListContainer" style="max-height:55vh;overflow-y:auto;"></div>
         </div>
 
+    </div>
+</div>
+
+<div id="captureOptionsModal" class="modal">
+    <div class="modal-content" style="max-width:380px;">
+        <div class="modal-header">
+            <div style="display:flex;justify-content:flex-end;align-items:center;width:100%;">
+                <span class="close-btn" onclick="closeCaptureOptionsModal()">&times;</span>
+            </div>
+        </div>
+        <div class="modal-title" style="font-size:1rem;color:#c9b896;margin-bottom:10px;">📷 Capture / படம் எடுக்க</div>
+        <div style="border:1px solid #30363d;border-radius:8px;padding:12px;">
+            <button onclick="captureHadiyaSection()" style="width:100%;padding:12px;margin-bottom:8px;background:#1c2128;border:1px solid #30363d;border-radius:8px;color:#e6edf3;font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;">
+                📷 Capture Hadiya<br>ஹதியா படம்
+            </button>
+            <button onclick="captureReadingList()" style="width:100%;padding:12px;background:#1c2128;border:1px solid #30363d;border-radius:8px;color:#e6edf3;font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;">
+                📋 Capture Reading List<br>வாசிப்பு பட்டியல் படம்
+            </button>
+        </div>
     </div>
 </div>
 

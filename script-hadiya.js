@@ -19,6 +19,7 @@ function fetchHadiyaDetails(dateVal) {
 }
 
 var countdownInterval = null;
+var hadiyaBounds = null;
 function startHadiyaCountdown(deadlineISO) {
     if (countdownInterval) clearInterval(countdownInterval);
     var dEl = document.getElementById('hadiyaCounterDays');
@@ -111,6 +112,7 @@ function openHadiyaMenuModal() {
     document.getElementById('hadiyaMenuSchedule').style.display = 'none';
     document.getElementById('hadiyaMenuStatus').style.display = 'none';
     document.getElementById('hadiyaMenuDetails').style.display = 'none';
+    document.getElementById('hadiyaMenuAddNext').style.display = 'none';
     document.getElementById('hadiyaMenuModal').style.display = 'flex';
 }
 function closeHadiyaMenuModal() {
@@ -144,8 +146,10 @@ function openHadiyaMenuView(viewId) {
     document.getElementById('hadiyaMenuSchedule').style.display = 'none';
     document.getElementById('hadiyaMenuStatus').style.display = 'none';
     document.getElementById('hadiyaMenuDetails').style.display = 'none';
+    document.getElementById('hadiyaMenuAddNext').style.display = 'none';
     document.getElementById(viewId).style.display = 'block';
     if (viewId === 'hadiyaMenuDetails') loadHadiyaDetailsList();
+    if (viewId === 'hadiyaMenuAddNext') initAddNextHadiya();
     hadiyaMenuNavStack.push('hadiyaMenuMain');
 }
 function goBackHadiyaMenu() {
@@ -158,6 +162,7 @@ function goBackHadiyaMenu() {
     document.getElementById('hadiyaMenuSchedule').style.display = 'none';
     document.getElementById('hadiyaMenuStatus').style.display = 'none';
     document.getElementById('hadiyaMenuDetails').style.display = 'none';
+    document.getElementById('hadiyaMenuAddNext').style.display = 'none';
     document.getElementById(prev).style.display = 'block';
 }
 function submitHadiyaEditComplete() {
@@ -195,6 +200,12 @@ function saveHadiyaScheduleTimes() {
 }
 
 function navigateHadiya(dir) {
+    var bounds = hadiyaBounds || currentHadiyaDetails;
+    if (bounds && typeof bounds.currentIndex === 'number') {
+        var target = bounds.currentIndex + dir;
+        if (typeof bounds.firstIndex === 'number' && target < bounds.firstIndex) return;
+        if (typeof bounds.lastIndex === 'number' && target > bounds.lastIndex) return;
+    }
     var input = document.getElementById('dateInput');
     var val = input.value || new Date().toISOString().slice(0,16);
     var datePart = val.match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -203,7 +214,10 @@ function navigateHadiya(dir) {
     d.setDate(d.getDate() + dir * 7);
     var p = function(n) { return String(n).padStart(2,'0'); };
     var t = timePart ? timePart[1] : '00:00';
-    input.value = d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate()) + 'T' + t;
+    var newVal = d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate()) + 'T' + t;
+    newVal = clampDateToHadiyaBounds(newVal);
+    if (input.value === newVal) return;
+    input.value = newVal;
     input.dispatchEvent(new Event('change'));
 }
 
@@ -216,7 +230,8 @@ function goToCurrentWeek() {
     var ist = new Date(now.getTime() + now.getTimezoneOffset() * 60000 + IST_MS);
     var p = function(n) { return String(n).padStart(2,'0'); };
     var t = timePart ? timePart[1] : p(ist.getHours()) + ':' + p(ist.getMinutes());
-    input.value = ist.getFullYear() + '-' + p(ist.getMonth()+1) + '-' + p(ist.getDate()) + 'T' + t;
+    var val = ist.getFullYear() + '-' + p(ist.getMonth()+1) + '-' + p(ist.getDate()) + 'T' + t;
+    input.value = clampDateToHadiyaBounds(val);
     input.dispatchEvent(new Event('change'));
 }
 
@@ -224,6 +239,45 @@ function hideHadiya() {
     document.getElementById('hadiyaBox').style.display = "none";
     var shareBtn = document.getElementById('hadiyaShareBtn');
     if (shareBtn) { shareBtn.style.display = 'none'; }
+}
+
+function hadiyaDateOnly(val) {
+    if (!val) return '';
+    var m = String(val).match(/^(\d{4}-\d{2}-\d{2})/);
+    return m ? m[1] : '';
+}
+function hadiyaEndDateOnly(startVal) {
+    var s = hadiyaDateOnly(startVal);
+    if (!s) return '';
+    var p = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!p) return s;
+    var d = new Date(+p[1], +p[2]-1, +p[3]);
+    d.setDate(d.getDate() + 6);
+    var pad = function(n){ return String(n).padStart(2,'0'); };
+    return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
+}
+function applyHadiyaDateBounds() {
+    var input = document.getElementById('dateInput');
+    if (!input || !hadiyaBounds) return;
+    var first = hadiyaDateOnly(hadiyaBounds.firstStartDate);
+    var lastEnd = hadiyaEndDateOnly(hadiyaBounds.lastStartDate);
+    if (first) input.min = first + 'T00:00'; else input.removeAttribute('min');
+    if (lastEnd) input.max = lastEnd + 'T23:59'; else input.removeAttribute('max');
+    var clamped = clampDateToHadiyaBounds(input.value);
+    if (clamped !== input.value) input.value = clamped;
+}
+function clampDateToHadiyaBounds(val) {
+    if (!hadiyaBounds) return val;
+    var first = hadiyaDateOnly(hadiyaBounds.firstStartDate);
+    var lastEnd = hadiyaEndDateOnly(hadiyaBounds.lastStartDate);
+    if (!first && !lastEnd) return val;
+    var m = String(val || '').match(/^(\d{4}-\d{2}-\d{2})/);
+    if (!m) return val;
+    var d = m[1];
+    var t = (String(val).match(/T(\d{2}:\d{2})/) || [,'00:00'])[1];
+    if (first && d < first) { d = first; t = '00:00'; }
+    if (lastEnd && d > lastEnd) { d = lastEnd; t = '23:59'; }
+    return d + 'T' + t;
 }
 
 function displayHadiya(res) {
@@ -238,6 +292,14 @@ function displayHadiya(res) {
     }
     hadiyaBox.style.display = "block";
     currentHadiyaDetails = res;
+    hadiyaBounds = {
+        firstIndex: res.firstIndex,
+        lastIndex: res.lastIndex,
+        currentIndex: res.currentIndex,
+        firstStartDate: res.firstStartDate,
+        lastStartDate: res.lastStartDate
+    };
+    applyHadiyaDateBounds();
     
     var cur = res.current;
     var isCompleted = cur.status === "Completed";
@@ -270,11 +332,19 @@ function displayHadiya(res) {
         accentColor = '#d29922';
     }
 
+    var canPrev = (typeof res.firstIndex === 'number' && typeof res.currentIndex === 'number') ? (res.currentIndex > res.firstIndex) : true;
+    var canNext = (typeof res.lastIndex === 'number' && typeof res.currentIndex === 'number') ? (res.currentIndex < res.lastIndex) : true;
+    var prevArrow = canPrev
+        ? `<a href="#" class="hadiya-nav-arrow" onclick="event.preventDefault(); navigateHadiya(-1);" style="color:${accentColor};">&lt;</a>`
+        : `<span class="hadiya-nav-arrow hadiya-nav-disabled" style="color:${accentColor};opacity:0.3;cursor:not-allowed;pointer-events:none;">&lt;</span>`;
+    var nextArrow = canNext
+        ? `<a href="#" class="hadiya-nav-arrow" onclick="event.preventDefault(); navigateHadiya(1);" style="color:${accentColor};">&gt;</a>`
+        : `<span class="hadiya-nav-arrow hadiya-nav-disabled" style="color:${accentColor};opacity:0.3;cursor:not-allowed;pointer-events:none;">&gt;</span>`;
     var headerHtml = `<div class="hadiya-header">
         <div style="font-size:0.75rem; color:${accentColor}; font-weight:bold;">
-            <a href="#" class="hadiya-nav-arrow" onclick="event.preventDefault(); navigateHadiya(-1);" style="color:${accentColor};">&lt;</a>
+            ${prevArrow}
             ${cur.range}
-            <a href="#" class="hadiya-nav-arrow" onclick="event.preventDefault(); navigateHadiya(1);" style="color:${accentColor};">&gt;</a>
+            ${nextArrow}
         </div>
     </div>`;
 
@@ -946,4 +1016,267 @@ function refreshHadiyaAfterDetailsChange() {
     var input = document.getElementById('dateInput');
     var dateVal = (input && input.value) ? input.value : (currentHadiyaDetails && currentHadiyaDetails.current ? currentHadiyaDetails.current.startDate : '');
     if (dateVal) fetchHadiyaDetails(dateVal);
+}
+
+// ----------------------------------------------------------------
+// Add Next Hadiya
+// ----------------------------------------------------------------
+var addNextState = { startDate: null, defaultCustomId: '' };
+var addNextMembers = [];
+
+function initAddNextHadiya() {
+    var infoEl = document.getElementById('addNextDateInfo');
+    var hintEl = document.getElementById('addNextDefaultHint');
+    var saveBtn = document.getElementById('addNextSaveBtn');
+    if (!infoEl) return;
+    document.getElementById('addNextMemberSearch').value = '';
+    document.getElementById('addNextMemberCustomId').value = '';
+    document.getElementById('addNextDropdown').innerHTML = '';
+    addNextState = { startDate: null, defaultCustomId: '' };
+    addNextMembers = [];
+    infoEl.textContent = 'Loading...';
+    hintEl.textContent = '';
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.innerHTML = 'Add Hadiya<br>ஹதியாவை சேர்க்க'; }
+
+    window.appApi.withSuccessHandler(function(info) {
+        addNextState.startDate = info.startDate || null;
+        addNextState.defaultCustomId = info.defaultCustomId || '';
+        addNextMembers = info.members || [];
+        infoEl.textContent = info.startDate ? ('Week of ' + info.startDate) : 'Unable to determine next week.';
+        if (info.defaultCustomId) {
+            var defDisplay = (info.defaultNameEn || info.defaultCustomId || '') + (info.defaultNameTa ? ' | ' + info.defaultNameTa : '');
+            hintEl.textContent = 'Default: Juz 30 reader (' + (info.defaultNameEn || info.defaultCustomId) + ')';
+            selectAddNextMember(info.defaultCustomId, defDisplay);
+        } else {
+            hintEl.textContent = 'No Juz 30 assignment found for this week. Please choose a member.';
+        }
+        if (saveBtn) saveBtn.disabled = false;
+    }).withFailureHandler(function(e) {
+        var msg = (e && e.message) ? e.message : (typeof e === 'string' ? e : 'Unknown error');
+        infoEl.textContent = 'Failed to load.';
+        hintEl.textContent = msg;
+        showSnackbar('Failed to load next Hadiya: ' + msg, true);
+    }).getNextHadiyaInfo();
+}
+
+function renderAddNextDropdown() {
+    var q = (document.getElementById('addNextMemberSearch').value || '').toLowerCase();
+    var dropdown = document.getElementById('addNextDropdown');
+    if (!dropdown) return;
+    var filtered = [];
+    addNextMembers.forEach(function(m, idx) {
+        var display = (m.name_en || '') + ' | ' + (m.name_ta || '');
+        if (display.toLowerCase().indexOf(q) > -1) filtered.push({ m: m, idx: idx });
+    });
+    if (filtered.length === 0) {
+        dropdown.innerHTML = '<div class="opt no-match">No matches / பொருந்தவில்லை</div>';
+    } else {
+        dropdown.innerHTML = filtered.map(function(x) {
+            var display = (x.m.name_en || '') + ' | ' + (x.m.name_ta || '');
+            return '<div class="opt" onmousedown="selectAddNextByIndex(' + x.idx + ')">' + escapeHtml(display) + '</div>';
+        }).join('');
+    }
+    dropdown.style.display = 'block';
+}
+function openAddNextDropdown() { renderAddNextDropdown(); }
+function filterAddNextOptions() { renderAddNextDropdown(); }
+function closeAddNextDropdown() {
+    var d = document.getElementById('addNextDropdown');
+    if (d) d.style.display = 'none';
+}
+function selectAddNextByIndex(idx) {
+    var m = addNextMembers[idx];
+    if (!m) return;
+    selectAddNextMember(m.custom_id, (m.name_en || '') + ' | ' + (m.name_ta || ''));
+}
+function selectAddNextMember(customId, display) {
+    document.getElementById('addNextMemberSearch').value = display;
+    document.getElementById('addNextMemberCustomId').value = customId;
+    closeAddNextDropdown();
+}
+
+function saveNextHadiya() {
+    var customId = document.getElementById('addNextMemberCustomId').value;
+    if (!addNextState.startDate) { showSnackbar('Still loading. Please wait.', true); return; }
+    if (!customId) { showSnackbar('Please choose a member.', true); return; }
+    var btn = document.getElementById('addNextSaveBtn');
+    btn.disabled = true;
+    btn.innerText = 'Adding...';
+    var addedDate = addNextState.startDate;
+    window.appApi.withSuccessHandler(function(r) {
+        btn.disabled = false;
+        btn.innerHTML = 'Add Hadiya<br>ஹதியாவை சேர்க்க';
+        if (r && r.success) {
+            showSnackbar('Next Hadiya added!', false);
+            closeHadiyaMenuModal();
+            fetchHadiyaDetails(addedDate);
+        } else {
+            showSnackbar('Failed: ' + ((r && r.error) || 'Error'), true);
+        }
+    }).withFailureHandler(function(e) {
+        btn.disabled = false;
+        btn.innerHTML = 'Add Hadiya<br>ஹதியாவை சேர்க்க';
+        var msg = (e && e.message) ? e.message : (typeof e === 'string' ? e : 'Unknown error');
+        showSnackbar('Failed: ' + msg, true);
+    }).addNextHadiya(addNextState.startDate, customId);
+}
+
+function openCaptureOptionsModal() {
+    if (!(window._isAdmin || (window.isAdmin && window.isAdmin()))) {
+        showSnackbar('Admin access only.', true);
+        return;
+    }
+    var m = document.getElementById('captureOptionsModal');
+    if (m) m.style.display = 'flex';
+}
+function closeCaptureOptionsModal() {
+    var m = document.getElementById('captureOptionsModal');
+    if (m) m.style.display = 'none';
+}
+
+function renderNodeToClipboard(node, successMsg) {
+    if (typeof html2canvas !== 'function') {
+        showSnackbar('Image capture unavailable.', true);
+        return;
+    }
+    document.body.appendChild(node);
+    html2canvas(node, { scale: 3, useCORS: true, backgroundColor: '#0d1117', logging: false }).then(function(canvas) {
+        document.body.removeChild(node);
+        canvas.toBlob(function(blob) {
+            if (!blob) { showSnackbar('Failed to create image.', true); return; }
+            try {
+                if (navigator.clipboard && window.ClipboardItem) {
+                    navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(function() {
+                        showSnackbar(successMsg || 'Image copied!', false);
+                    }).catch(function() { downloadBlob(blob, 'capture.png'); showSnackbar('Downloaded image (clipboard unavailable).', false); });
+                } else {
+                    downloadBlob(blob, 'capture.png');
+                    showSnackbar('Downloaded image.', false);
+                }
+            } catch (e) {
+                downloadBlob(blob, 'capture.png');
+                showSnackbar('Downloaded image.', false);
+            }
+        }, 'image/png');
+    }).catch(function() {
+        if (node.parentNode) document.body.removeChild(node);
+        showSnackbar('Rendering failed.', true);
+    });
+}
+function downloadBlob(blob, filename) {
+    var a = document.createElement('a');
+    var url = URL.createObjectURL(blob);
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    setTimeout(function() { URL.revokeObjectURL(url); if (a.parentNode) a.parentNode.removeChild(a); }, 1000);
+}
+
+function captureHadiyaSection() {
+    if (!(window._isAdmin || (window.isAdmin && window.isAdmin()))) { showSnackbar('Admin access only.', true); return; }
+    if (!currentHadiyaDetails || !currentHadiyaDetails.current) {
+        showSnackbar('No Hadiya details to capture.', true);
+        return;
+    }
+    var box = document.getElementById('hadiyaBox');
+    if (!box) { showSnackbar('Hadiya section not found.', true); return; }
+    closeCaptureOptionsModal();
+    closeHadiyaMenuModal();
+    var clone = box.cloneNode(true);
+    // remove interactive elements
+    var removeSelectors = ['#hadiyaShareBtn', 'button', '.hadiya-nav-arrow', '#hadiyaMenuBtn'];
+    removeSelectors.forEach(function(sel) {
+        clone.querySelectorAll(sel).forEach(function(el) { if (el && el.parentNode) el.parentNode.removeChild(el); });
+    });
+    // replace nav arrows/text containers if any remain by disabling clicks
+    clone.querySelectorAll('a').forEach(function(a){ a.removeAttribute('onclick'); a.style.pointerEvents='none'; a.style.textDecoration='none'; });
+    var wrap = document.createElement('div');
+    wrap.style.cssText = 'position:fixed;left:-9999px;top:0;width:420px;background:#0d1117;padding:16px;box-sizing:border-box;font-family:Poppins,Arial,sans-serif;color:#e6edf3;';
+    clone.style.display = 'block';
+    clone.style.margin = '0';
+    clone.style.width = '100%';
+    wrap.appendChild(clone);
+    renderNodeToClipboard(wrap, 'Hadiya image copied!');
+}
+
+function captureReadingList() {
+    if (!(window._isAdmin || (window.isAdmin && window.isAdmin()))) { showSnackbar('Admin access only.', true); return; }
+    if (!currentHadiyaDetails || !currentHadiyaDetails.current) {
+        showSnackbar('No Hadiya details available.', true);
+        return;
+    }
+    var cur = currentHadiyaDetails.current;
+    // Use end-of-week date so getWeeklyReport's cutoff logic doesn't shift to previous week
+    var dateForReport = cur.weekEndDate || cur.startDate;
+    var range = cur.range || '';
+    closeCaptureOptionsModal();
+    closeHadiyaMenuModal();
+    showSnackbar('Preparing reading list...', false);
+    window.appApi.withSuccessHandler(function(resp) {
+        var rows = (resp && resp.data) ? resp.data : [];
+        if (!rows.length) { showSnackbar('No reading list data found for this week.', true); return; }
+        rows = rows.slice().sort(function(a,b){
+            var ja = parseInt(a.juzNum,10) || 0, jb = parseInt(b.juzNum,10) || 0;
+            if (ja !== jb) return ja - jb;
+            return String(a.name||'').localeCompare(String(b.name||''));
+        });
+        function buildPairItem(r, idx) {
+            var name = r.name || '';
+            var nameEn = name.indexOf('|')>-1 ? name.split('|')[0].trim() : name;
+            var nameTa = name.indexOf('|')>-1 ? name.split('|')[1].trim() : '';
+            var juzNo = r.juzNum || '';
+            var juzAr = r.juzAr || '';
+            var juzEn = r.juzEn || '';
+            var juzTa = r.juzTa || '';
+            var bg = (idx % 2 === 0) ? '#0d1117' : '#121922';
+            return '<div style="background:' + bg + ';border:1px solid #21262d;border-radius:8px;padding:8px 10px;margin-bottom:6px;box-sizing:border-box;">' +
+                '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">' +
+                    '<span style="display:inline-block;min-width:30px;padding:2px 8px;border-radius:999px;background:#12263a;color:#58a6ff;font-weight:700;font-size:12px;text-align:center;">' + escapeHtml(String(juzNo)) + '</span>' +
+                    '<div style="flex:1;min-width:0;">' +
+                        '<div style="font-size:12.5px;color:#e6edf3;font-weight:600;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(nameEn) + '</div>' +
+                        (nameTa ? '<div style="font-size:10.5px;color:#8b949e;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(nameTa) + '</div>' : '') +
+                    '</div>' +
+                '</div>' +
+                '<div style="border-top:1px dashed #30363d;margin:4px 0 4px;"></div>' +
+                '<div style="font-size:11px;line-height:1.3;">' +
+                    (juzAr ? '<div style="color:#d2a8ff;font-weight:600;margin-bottom:1px;">' + escapeHtml(juzAr) + '</div>' : '') +
+                    '<div style="color:#c9d1d9;">' + escapeHtml(juzEn) + (juzTa ? ' <span style="color:#6e7681;">•</span> <span style="color:#8b949e;">' + escapeHtml(juzTa) + '</span>' : '') + '</div>' +
+                '</div>' +
+            '</div>';
+        }
+        var left = rows.slice(0, 15).map(function(r,i){ return buildPairItem(r,i); }).join('');
+        var right = rows.slice(15).map(function(r,i){ return buildPairItem(r,i+15); }).join('');
+        var nominated = (cur.en || '') + (cur.ta ? ' / ' + cur.ta : '');
+        // A4 portrait @96dpi ~ 794x1123. Two columns (15 + 15) for compact fit.
+        var html = '<div style="width:794px;min-height:1123px;background:#0d1117;padding:30px 32px 22px;box-sizing:border-box;font-family:Poppins,Arial,sans-serif;color:#e6edf3;position:relative;display:flex;flex-direction:column;">' +
+            '<div style="position:absolute;left:0;top:0;right:0;height:6px;background:linear-gradient(90deg,#1f6feb,#58a6ff,#79c0ff);"></div>' +
+            '<div style="text-align:center;margin-bottom:10px;">' +
+                '<div style="font-size:21px;font-weight:700;color:#e6edf3;letter-spacing:0.3px;">Inainthu Othuvom</div>' +
+                '<div style="font-size:12.5px;color:#8b949e;margin-top:1px;">இணைந்து ஓதுவோம்</div>' +
+            '</div>' +
+            '<div style="background:#161b22;border:1px solid #30363d;border-radius:12px;padding:10px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:16px;">' +
+                '<div>' +
+                    '<div style="font-size:10.5px;color:#8b949e;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:2px;">Reading Assignment / வாசிப்பு பட்டியல்</div>' +
+                    '<div style="font-size:17px;font-weight:700;color:#79c0ff;">' + escapeHtml(range) + '</div>' +
+                '</div>' +
+                '<div style="text-align:right;">' +
+                    '<div style="font-size:10.5px;color:#8b949e;margin-bottom:1px;">This Week\'s Hadiya</div>' +
+                    '<div style="font-size:12.5px;color:#e6edf3;font-weight:600;max-width:300px;line-height:1.25;">' + escapeHtml(nominated) + '</div>' +
+                '</div>' +
+            '</div>' +
+            '<div style="flex:1 0 auto;display:flex;gap:10px;align-items:flex-start;">' +
+                '<div style="flex:1;min-width:0;">' + left + '</div>' +
+                '<div style="flex:1;min-width:0;">' + right + '</div>' +
+            '</div>' +
+            '<div style="margin-top:8px;display:flex;justify-content:space-between;color:#6e7681;font-size:10px;">' +
+                '<span>Inainthu Othuvom</span><span>' + escapeHtml(range) + '</span>' +
+            '</div>' +
+        '</div>';
+        var wrap = document.createElement('div');
+        wrap.style.cssText = 'position:fixed;left:-9999px;top:0;';
+        wrap.innerHTML = html;
+        renderNodeToClipboard(wrap, 'Reading list image copied!');
+    }).withFailureHandler(function(e){
+        var msg = (e && e.message) ? e.message : (typeof e === 'string' ? e : 'Failed to load reading list.');
+        showSnackbar(msg, true);
+    }).getWeeklyReport(dateForReport);
 }
