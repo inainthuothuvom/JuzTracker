@@ -470,10 +470,44 @@
             <button onclick="captureHadiyaSection()" style="width:100%;padding:12px;margin-bottom:8px;background:#1c2128;border:1px solid #30363d;border-radius:8px;color:#e6edf3;font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;">
                 📷 Capture Hadiya<br>ஹதியா படம்
             </button>
-            <button onclick="captureReadingList()" style="width:100%;padding:12px;background:#1c2128;border:1px solid #30363d;border-radius:8px;color:#e6edf3;font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;">
+            <button onclick="captureReadingList()" style="width:100%;padding:12px;margin-bottom:8px;background:#1c2128;border:1px solid #30363d;border-radius:8px;color:#e6edf3;font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;">
                 📋 Capture Reading List<br>வாசிப்பு பட்டியல் படம்
             </button>
+            <button onclick="openDepartureWelcomeModal()" style="width:100%;padding:12px;background:#1c2128;border:1px solid #30363d;border-radius:8px;color:#e6edf3;font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;">
+                👋 Departure &amp; Welcome<br>பிரிவு &amp; வரவேற்பு
+            </button>
         </div>
+    </div>
+</div>
+
+<div id="departureWelcomeModal" class="modal">
+    <div class="modal-content" style="max-width:420px;">
+        <div class="modal-header">
+            <div style="display:flex;justify-content:space-between;align-items:center;width:100%;">
+                <span class="close-btn" style="font-size:1.2rem;color:#e6edf3;position:static;" onclick="closeDepartureWelcomeModal(); openCaptureOptionsModal();">←</span>
+                <span class="close-btn" onclick="closeDepartureWelcomeModal()">&times;</span>
+            </div>
+        </div>
+        <div class="modal-title" style="font-size:1rem;color:#c9b896;margin-bottom:6px;">👋 Departure &amp; Welcome<br>பிரிவு &amp; வரவேற்பு</div>
+        <div id="departureWeekLabel" style="font-size:0.8rem;color:#58a6ff;font-weight:600;margin-bottom:10px;text-align:center;"></div>
+        <div style="margin-bottom:10px;">
+            <label style="font-size:0.75rem;color:#c9d1d9;display:block;margin-bottom:4px;">Outgoing - Name (English)</label>
+            <input type="text" id="outgoingNameEn" placeholder="e.g. Sifana Sadiq" style="width:100%;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#e6edf3;padding:10px;font-size:0.85rem;font-family:inherit;box-sizing:border-box;">
+        </div>
+        <div style="margin-bottom:10px;">
+            <label style="font-size:0.75rem;color:#c9d1d9;display:block;margin-bottom:4px;">Outgoing - பெயர் (தமிழ்)</label>
+            <input type="text" id="outgoingNameTa" placeholder="விடைபெறும் நபர்" style="width:100%;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#e6edf3;padding:10px;font-size:0.85rem;font-family:inherit;box-sizing:border-box;">
+        </div>
+        <div style="margin-bottom:10px;">
+            <label style="font-size:0.75rem;color:#c9d1d9;display:block;margin-bottom:4px;">Newcomer - Name (English)</label>
+            <input type="text" id="newcomerNameEn" placeholder="e.g. Fareeda" style="width:100%;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#e6edf3;padding:10px;font-size:0.85rem;font-family:inherit;box-sizing:border-box;">
+        </div>
+        <div style="margin-bottom:12px;">
+            <label style="font-size:0.75rem;color:#c9d1d9;display:block;margin-bottom:4px;">Newcomer - பெயர் (தமிழ்)</label>
+            <input type="text" id="newcomerNameTa" placeholder="புதிய நபர்" style="width:100%;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#e6edf3;padding:10px;font-size:0.85rem;font-family:inherit;box-sizing:border-box;">
+        </div>
+        <div style="font-size:0.7rem;color:#8b949e;margin-bottom:10px;">You can edit names to use preferred names before preview.</div>
+        <button onclick="previewDepartureWelcome()" style="width:100%;padding:10px;font-size:0.8rem;background:#1f6feb;border:none;border-radius:8px;color:#fff;font-weight:600;cursor:pointer;font-family:inherit;">Preview / முன்னோட்டம்</button>
     </div>
 </div>
 

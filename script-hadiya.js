@@ -1134,34 +1134,220 @@ function closeCaptureOptionsModal() {
     if (m) m.style.display = 'none';
 }
 
+function openDepartureWelcomeModal() {
+    if (!(window._isAdmin || (window.isAdmin && window.isAdmin()))) { showSnackbar('Admin access only.', true); return; }
+    if (!currentHadiyaDetails || !currentHadiyaDetails.current) { showSnackbar('No Hadiya week selected.', true); return; }
+    closeCaptureOptionsModal();
+    var cur = currentHadiyaDetails.current;
+    var range = cur.range || (cur.startDate || '');
+    var label = document.getElementById('departureWeekLabel');
+    if (label) label.textContent = range ? ('Effective this week: ' + range) : '';
+    // clear/prefill defaults
+    ['outgoingNameEn','outgoingNameTa','newcomerNameEn','newcomerNameTa'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+    var modal = document.getElementById('departureWelcomeModal');
+    if (modal) modal.style.display = 'flex';
+    // best-effort prefill: detect members whose effective_date falls in this hadiya week
+    tryPrefillDepartureWelcome(cur);
+}
+function closeDepartureWelcomeModal() {
+    var m = document.getElementById('departureWelcomeModal');
+    if (m) m.style.display = 'none';
+}
+
+function tryPrefillDepartureWelcome(cur) {
+    if (!window.appApi || typeof window.appApi.getAllMembers !== 'function') return;
+    var start = hadiyaDateOnly(cur.startDate);
+    if (!start) return;
+    var end = hadiyaEndDateOnly(cur.startDate);
+    window.appApi.withSuccessHandler(function(members) {
+        members = members || [];
+        // find newcomer(s) with effective_date in [start,end]
+        var newcomers = members.filter(function(m){
+            var eff = hadiyaDateOnly(m.effective_date);
+            return eff && eff >= start && eff <= end;
+        });
+        if (!newcomers.length) return;
+        // pick one with a same-custom_id predecessor as likely replacement
+        var chosen = null, outgoing = null;
+        for (var i=0;i<newcomers.length;i++) {
+            var n = newcomers[i];
+            var same = members.filter(function(m){ return String(m.custom_id) === String(n.custom_id) && String(m.id) !== String(n.id); });
+            // outgoing: most recent effective before newcomer
+            var prev = null;
+            same.forEach(function(m){
+                var eff = hadiyaDateOnly(m.effective_date);
+                var neff = hadiyaDateOnly(n.effective_date) || start;
+                if (!eff || eff < neff) {
+                    if (!prev) prev = m;
+                    else {
+                        var pe = hadiyaDateOnly(prev.effective_date);
+                        if (!pe || (eff && eff > pe)) prev = m;
+                    }
+                }
+            });
+            if (prev) { chosen = n; outgoing = prev; break; }
+            if (!chosen) chosen = n;
+        }
+        if (!chosen) return;
+        var setVal = function(id,val){ var el=document.getElementById(id); if(el && !el.value) el.value = val || ''; };
+        setVal('newcomerNameEn', chosen.name_en || '');
+        setVal('newcomerNameTa', chosen.name_ta || '');
+        if (outgoing) {
+            setVal('outgoingNameEn', outgoing.name_en || '');
+            setVal('outgoingNameTa', outgoing.name_ta || '');
+        }
+    }).getAllMembers();
+}
+
+function previewDepartureWelcome() {
+    if (!(window._isAdmin || (window.isAdmin && window.isAdmin()))) { showSnackbar('Admin access only.', true); return; }
+    if (!currentHadiyaDetails || !currentHadiyaDetails.current) { showSnackbar('No Hadiya week selected.', true); return; }
+    var outEn = (document.getElementById('outgoingNameEn').value || '').trim();
+    var outTa = (document.getElementById('outgoingNameTa').value || '').trim();
+    var inEn = (document.getElementById('newcomerNameEn').value || '').trim();
+    var inTa = (document.getElementById('newcomerNameTa').value || '').trim();
+    if (!outEn || !inEn) { showSnackbar('Please enter outgoing and newcomer names (English).', true); return; }
+    if (!outTa) outTa = outEn;
+    if (!inTa) inTa = inEn;
+    var cur = currentHadiyaDetails.current;
+    var range = cur.range || '';
+    var node = buildDepartureWelcomeNode({ outEn: outEn, outTa: outTa, inEn: inEn, inTa: inTa, range: range });
+    closeDepartureWelcomeModal();
+    openCapturePreview(node, { bgColor: '#0d1117', scale: 3, successMsg: 'Announcement image copied!' });
+}
+
+function buildDepartureWelcomeNode(d) {
+    var esc = function(s){ return escapeHtml(s || ''); };
+    var html = '<div style="width:640px;background:#0d1117;padding:28px 30px;box-sizing:border-box;font-family:Poppins,Arial,sans-serif;color:#e6edf3;position:relative;">' +
+        '<div style="position:absolute;left:0;top:0;right:0;height:5px;background:linear-gradient(90deg,#1f6feb,#58a6ff,#79c0ff);"></div>' +
+        '<div style="text-align:center;margin-bottom:14px;">' +
+            '<div style="font-size:18px;font-weight:700;color:#79c0ff;">Announcement / அறிவிப்பு</div>' +
+            (d.range ? '<div style="font-size:12px;color:#8b949e;margin-top:3px;">' + esc(d.range) + '</div>' : '') +
+        '</div>' +
+        '<div style="background:#161b22;border:1px solid #30363d;border-radius:12px;padding:16px 18px;margin-bottom:12px;">' +
+            '<div style="font-size:12px;color:#58a6ff;font-weight:700;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">English</div>' +
+            '<div style="font-size:14px;line-height:1.7;color:#e6edf3;">' +
+                '<p style="margin:0 0 10px;">Effective this week, <strong>' + esc(d.inEn) + '</strong> will be joining us, replacing <strong>' + esc(d.outEn) + '</strong>.</p>' +
+                '<p style="margin:0 0 10px;">Jazakallah Khair, <strong>' + esc(d.outEn) + '</strong>, for your dedication and participation in our weekly Juz recitation thus far.</p>' +
+                '<p style="margin:0;">A warm welcome to you, <strong>' + esc(d.inEn) + '</strong>! We are glad to have you in <strong>Inainthu Othuvom (Hadiya)</strong>.</p>' +
+            '</div>' +
+        '</div>' +
+        '<div style="background:#161b22;border:1px solid #30363d;border-radius:12px;padding:16px 18px;">' +
+            '<div style="font-size:12px;color:#58a6ff;font-weight:700;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">தமிழ்</div>' +
+            '<div style="font-size:14px;line-height:1.8;color:#e6edf3;">' +
+                '<p style="margin:0 0 10px;">இந்த வாரம் முதல், <strong>' + esc(d.outTa) + '</strong> அவர்களுக்கு பதிலாக <strong>' + esc(d.inTa) + '</strong> அவர்கள் எங்களுடன் இணைகிறார்.</p>' +
+                '<p style="margin:0 0 10px;">இதுவரை வாராந்திர ஜுஸ் ஓதலில் நீங்கள் காட்டிய அர்ப்பணிப்பிற்கும் பங்களிப்பிற்கும், <strong>' + esc(d.outTa) + '</strong> அவர்களே, ஜஸாக்கல்லாஹு கைர்.</p>' +
+                '<p style="margin:0;"><strong>' + esc(d.inTa) + '</strong> அவர்களே, <strong>இணைந்து ஓதுவோம் (ஹதியா)</strong> குழுவில் உங்களை அன்புடன் வரவேற்கிறோம்.</p>' +
+            '</div>' +
+        '</div>' +
+    '</div>';
+    var wrap = document.createElement('div');
+    wrap.innerHTML = html;
+    return wrap.firstElementChild || wrap;
+}
+
 function renderNodeToClipboard(node, successMsg) {
-    if (typeof html2canvas !== 'function') {
-        showSnackbar('Image capture unavailable.', true);
-        return;
+    // Backward-compatible direct capture (no preview) - kept for safety
+    openCapturePreview(node, { bgColor: '#0d1117', scale: 3, successMsg: successMsg, autoCopy: true });
+}
+
+function openCapturePreview(contentNode, opts) {
+    opts = opts || {};
+    if (typeof html2canvas !== 'function') { showSnackbar('Image capture unavailable.', true); return; }
+    var bgColor = opts.bgColor || '#0d1117';
+    var scale = opts.scale || 3;
+    var successMsg = opts.successMsg || 'Image copied!';
+    var autoCopy = !!opts.autoCopy;
+
+    var overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9998;background:rgba(13,17,23,0.98);display:flex;align-items:center;justify-content:center;overflow:auto;padding:16px;box-sizing:border-box;';
+
+    var wrapper = document.createElement('div');
+    wrapper.style.cssText = 'display:flex;flex-direction:column;align-items:center;max-width:100%;';
+
+    var topBar = document.createElement('div');
+    topBar.style.cssText = 'width:100%;max-width:' + ((contentNode.offsetWidth || 480)) + 'px;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:0 0 10px;box-sizing:border-box;';
+
+    var closeBtn = document.createElement('button');
+    closeBtn.textContent = 'Close';
+    closeBtn.style.cssText = 'background:#30363d;color:#e6edf3;border:none;border-radius:8px;padding:8px 14px;cursor:pointer;font-family:inherit;font-size:0.8rem;font-weight:600;';
+
+    var copyBtn = document.createElement('button');
+    copyBtn.textContent = 'Copy Image';
+    copyBtn.style.cssText = 'background:#1f6feb;color:#fff;border:none;border-radius:8px;padding:8px 14px;cursor:pointer;font-family:inherit;font-size:0.8rem;font-weight:600;';
+
+    topBar.appendChild(closeBtn);
+    topBar.appendChild(copyBtn);
+
+    var previewBox = document.createElement('div');
+    previewBox.style.cssText = 'max-height:80vh;overflow:auto;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.5);';
+    previewBox.appendChild(contentNode);
+
+    wrapper.appendChild(topBar);
+    wrapper.appendChild(previewBox);
+    overlay.appendChild(wrapper);
+    document.body.appendChild(overlay);
+
+    // scale down preview if wider than viewport
+    var baseW = contentNode.offsetWidth || contentNode.style.width.replace('px','') || 480;
+    var avail = Math.max(200, window.innerWidth - 40);
+    if (baseW > avail) {
+        var sc = avail / baseW;
+        previewBox.style.transform = 'scale(' + sc + ')';
+        previewBox.style.transformOrigin = 'top center';
+        previewBox.style.marginBottom = ((sc - 1) * (contentNode.offsetHeight || 600)) + 'px';
     }
-    document.body.appendChild(node);
-    html2canvas(node, { scale: 3, useCORS: true, backgroundColor: '#0d1117', logging: false }).then(function(canvas) {
-        document.body.removeChild(node);
-        canvas.toBlob(function(blob) {
-            if (!blob) { showSnackbar('Failed to create image.', true); return; }
-            try {
+
+    function closePreview() {
+        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    }
+    closeBtn.onclick = closePreview;
+    overlay.onclick = function(e){ if (e.target === overlay) closePreview(); };
+
+    function doCopy() {
+        copyBtn.disabled = true;
+        var oldText = copyBtn.textContent;
+        copyBtn.textContent = 'Rendering...';
+        // capture full content without scroll clipping
+        var origMaxH = previewBox.style.maxHeight;
+        var origOverflow = previewBox.style.overflow;
+        var origTransform = previewBox.style.transform;
+        previewBox.style.maxHeight = 'none';
+        previewBox.style.overflow = 'visible';
+        previewBox.style.transform = 'none';
+        html2canvas(contentNode, { scale: scale, useCORS: true, backgroundColor: bgColor, logging: false }).then(function(canvas) {
+            previewBox.style.maxHeight = origMaxH;
+            previewBox.style.overflow = origOverflow;
+            previewBox.style.transform = origTransform;
+            canvas.toBlob(function(blob) {
+                if (!blob) { copyBtn.disabled=false; copyBtn.textContent=oldText; showSnackbar('Failed to create image.', true); return; }
                 if (navigator.clipboard && window.ClipboardItem) {
                     navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(function() {
-                        showSnackbar(successMsg || 'Image copied!', false);
-                    }).catch(function() { downloadBlob(blob, 'capture.png'); showSnackbar('Downloaded image (clipboard unavailable).', false); });
+                        copyBtn.textContent = 'Copied!';
+                        copyBtn.style.background = '#238636';
+                        showSnackbar(successMsg, false);
+                        setTimeout(function(){ copyBtn.textContent = oldText; copyBtn.style.background = '#1f6feb'; copyBtn.disabled = false; }, 2000);
+                    }).catch(function() {
+                        downloadBlob(blob, 'capture.png');
+                        copyBtn.textContent = oldText; copyBtn.disabled = false;
+                        showSnackbar('Downloaded image (clipboard unavailable).', false);
+                    });
                 } else {
                     downloadBlob(blob, 'capture.png');
+                    copyBtn.textContent = oldText; copyBtn.disabled = false;
                     showSnackbar('Downloaded image.', false);
                 }
-            } catch (e) {
-                downloadBlob(blob, 'capture.png');
-                showSnackbar('Downloaded image.', false);
-            }
-        }, 'image/png');
-    }).catch(function() {
-        if (node.parentNode) document.body.removeChild(node);
-        showSnackbar('Rendering failed.', true);
-    });
+            }, 'image/png');
+        }).catch(function() {
+            previewBox.style.maxHeight = origMaxH;
+            previewBox.style.overflow = origOverflow;
+            previewBox.style.transform = origTransform;
+            copyBtn.disabled = false; copyBtn.textContent = oldText;
+            showSnackbar('Rendering failed.', true);
+        });
+    }
+    copyBtn.onclick = doCopy;
+    if (autoCopy) doCopy();
 }
 function downloadBlob(blob, filename) {
     var a = document.createElement('a');
@@ -1190,12 +1376,12 @@ function captureHadiyaSection() {
     // replace nav arrows/text containers if any remain by disabling clicks
     clone.querySelectorAll('a').forEach(function(a){ a.removeAttribute('onclick'); a.style.pointerEvents='none'; a.style.textDecoration='none'; });
     var wrap = document.createElement('div');
-    wrap.style.cssText = 'position:fixed;left:-9999px;top:0;width:420px;background:#0d1117;padding:16px;box-sizing:border-box;font-family:Poppins,Arial,sans-serif;color:#e6edf3;';
+    wrap.style.cssText = 'width:420px;background:#0d1117;padding:16px;box-sizing:border-box;font-family:Poppins,Arial,sans-serif;color:#e6edf3;';
     clone.style.display = 'block';
     clone.style.margin = '0';
     clone.style.width = '100%';
     wrap.appendChild(clone);
-    renderNodeToClipboard(wrap, 'Hadiya image copied!');
+    openCapturePreview(wrap, { bgColor: '#0d1117', scale: 3, successMsg: 'Hadiya image copied!' });
 }
 
 function captureReadingList() {
@@ -1272,9 +1458,9 @@ function captureReadingList() {
             '</div>' +
         '</div>';
         var wrap = document.createElement('div');
-        wrap.style.cssText = 'position:fixed;left:-9999px;top:0;';
         wrap.innerHTML = html;
-        renderNodeToClipboard(wrap, 'Reading list image copied!');
+        var content = wrap.firstElementChild || wrap;
+        openCapturePreview(content, { bgColor: '#0d1117', scale: 2, successMsg: 'Reading list image copied!' });
     }).withFailureHandler(function(e){
         var msg = (e && e.message) ? e.message : (typeof e === 'string' ? e : 'Failed to load reading list.');
         showSnackbar(msg, true);
